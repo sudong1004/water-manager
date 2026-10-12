@@ -34,6 +34,10 @@ export type Customer = {
   monthlyFee: number; // 월납입액
   etc: string; // 기타사항
   filters: FilterItem[];
+  // 지도용 좌표 캐시 (주소가 바뀌면 geoAddr가 달라져 자동으로 다시 변환)
+  lat?: number;
+  lng?: number;
+  geoAddr?: string;
 };
 
 export type Payment = {

@@ -3,19 +3,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
 import { balanceOf, emptyCustomer, todayStr } from "../lib/utils";
 import { api } from "../lib/api";
+import { USE_SUPABASE } from "../lib/supabase/env";
+import { browserClient } from "../lib/supabase/client";
 import CustomerForm from "./CustomerForm";
 import CustomerDetail from "./CustomerDetail";
 import DashboardView from "./DashboardView";
 import CustomersView from "./CustomersView";
 import PaymentsView from "./PaymentsView";
 import ImportView from "./ImportView";
+import MapView from "./MapView";
 
-type Tab = "home" | "customers" | "payments" | "import";
+type Tab = "home" | "customers" | "map" | "payments" | "import";
 type Mode = { type: "view"; id: string } | { type: "edit"; id: string } | { type: "new" } | null;
 
 const TABS: { k: Tab; icon: string; label: string }[] = [
   { k: "home", icon: "🏠", label: "홈" },
   { k: "customers", icon: "👥", label: "고객" },
+  { k: "map", icon: "🗺", label: "지도" },
   { k: "payments", icon: "💰", label: "수납" },
   { k: "import", icon: "📥", label: "가져오기" },
 ];
@@ -29,6 +33,14 @@ export default function CustomerApp() {
   const [segKey, setSegKey] = useState(0);
   const [mode, setMode] = useState<Mode>(null);
   const [toast, setToast] = useState("");
+  const [email, setEmail] = useState("");
+  useEffect(() => {
+    if (USE_SUPABASE) browserClient().auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+  }, []);
+  async function logout() {
+    await browserClient().auth.signOut();
+    window.location.href = "/login";
+  }
 
   const load = useCallback(async () => {
     const [c, p, r] = await Promise.all([api("/api/customers"), api("/api/payments"), api("/api/records")]);
@@ -88,7 +100,12 @@ export default function CustomerApp() {
               <button key={t.k} onClick={() => setTab(t.k)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === t.k ? "bg-sky-700 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{t.icon} {t.label}</button>
             ))}
           </nav>
-          <button onClick={() => setMode({ type: "new" })} className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white active:bg-sky-800">+ 신규등록</button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMode({ type: "new" })} className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white active:bg-sky-800">+ 신규등록</button>
+            {USE_SUPABASE && (
+              <button onClick={logout} title={email} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 active:bg-slate-50">로그아웃</button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -98,13 +115,14 @@ export default function CustomerApp() {
         <main>
           {tab === "home" && <DashboardView customers={list} payments={payments} records={records} open={open} go={go} />}
           {tab === "customers" && <CustomersView key={segKey} customers={list} balances={balances} records={records} initialSeg={seg} open={open} onNew={() => setMode({ type: "new" })} />}
+          {tab === "map" && <MapView customers={list} balances={balances} open={open} reload={load} notify={setToast} />}
           {tab === "payments" && <PaymentsView customers={list} payments={payments} open={open} />}
           {tab === "import" && <ImportView reload={load} notify={setToast} />}
         </main>
       )}
 
       {/* 모바일 하단 메뉴 */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
         {TABS.map((t) => (
           <button key={t.k} onClick={() => setTab(t.k)} className={`flex flex-col items-center gap-0.5 py-2.5 text-xs font-semibold ${tab === t.k ? "text-sky-700" : "text-slate-400"}`}>
             <span className="text-xl leading-none">{t.icon}</span>{t.label}

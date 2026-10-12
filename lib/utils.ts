@@ -95,3 +95,22 @@ export function pendingVisit(records: ServiceRecord[]): string | null {
   const done = records.some((x) => x !== r && x.date >= r.nextVisit);
   return done ? null : r.nextVisit;
 }
+
+// ───────── 지도 ─────────
+/** 지도 검색용 주소: 주소1 + 주소2의 번지까지만 (동·호수, 아파트명 제거) */
+export function mapAddress(c: Pick<Customer, "addr1" | "addr2">): string {
+  const jibun = c.addr2.trim().match(/^(산\s*)?\d+(-\d+)?/)?.[0] ?? "";
+  return `${c.addr1.trim()} ${jibun}`.trim();
+}
+export const hasCoord = (c: Customer) => typeof c.lat === "number" && typeof c.lng === "number" && c.geoAddr === mapAddress(c);
+
+/** 서버에서 저장 전에 누락된 필드를 기본값으로 채움 (API로 일부 필드만 와도 화면이 깨지지 않게) */
+export function normalizeCustomer(c: Partial<Customer>): Customer {
+  const blank: Customer = {
+    id: "", regDate: "", manager: "", name: "", contactPerson: "", category: "", title: "", productNo: "",
+    referrer: "", email: "", zip: "", addr1: "", addr2: "", tel1: "", tel2: "", mobile1: "", mobile2: "",
+    note1: "", note2: "", ref1: "", ref2: "", model: "", motor: "", memo: "", mgmtType: "", saleType: "",
+    monthlyFee: 0, etc: "", filters: [],
+  };
+  return { ...blank, ...c, filters: Array.isArray(c.filters) ? c.filters : [], monthlyFee: Number(c.monthlyFee) || 0 };
+}

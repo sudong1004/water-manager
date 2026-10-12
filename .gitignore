@@ -1,16 +1,4 @@
 node_modules
 .next
 next-env.d.ts
-
-# Environment variables and secrets
-.env
-.env.*
-!.env.example
-
-# Local customer data
-data/*.json
-
-# Dependencies and build output
-node_modules/
-.next/
-out/
+.env.local

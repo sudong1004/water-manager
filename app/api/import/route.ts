@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readAll } from "../../../lib/store";
+import { getRepos } from "../../../lib/repo";
 import { mergeCustomer, parseWorkbook } from "../../../lib/excel";
 import type { Customer } from "../../../lib/types";
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (parsed.missingHeaders.length)
     return NextResponse.json({ error: `필수 열을 찾을 수 없습니다: ${parsed.missingHeaders.join(", ")}` }, { status: 400 });
 
-  const existing = new Map((await readAll<Customer>("customers")).map((c) => [c.id, c]));
+  const existing = new Map((await (await getRepos()).customers.list()).map((c) => [c.id, c]));
   const items = parsed.customers.map((inc) => {
     const old = existing.get(inc.id);
     if (!old) return { status: "new" as const, id: inc.id, name: inc.name, changes: [] as string[], customer: inc };

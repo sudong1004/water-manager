@@ -35,8 +35,3 @@ export const mutate = <T, R>(name: string, fn: (list: T[]) => { list: T[]; resul
   });
 
 /** 여러 컬렉션을 한 번에 수정 (고객 삭제 시 수납/이력 함께 삭제 등) */
-
-export function nextId(list: { id: string }[]) {
-  const max = list.reduce((m, c) => Math.max(m, parseInt(c.id, 10) || 0), 0);
-  return String(max + 1);
-}
