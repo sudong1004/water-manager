@@ -60,6 +60,7 @@ export type ServiceRecord = {
   type: RecordType;
   content: string;
   nextVisit: string; // 다음 방문 예정일 (선택)
+  filters?: { name: string; prev: string }[]; // 필터교체 기록과 연결된 필터 (prev = 교체 전 교환일)
 };
 
 export type ImportLog = {
