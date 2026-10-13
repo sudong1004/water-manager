@@ -54,7 +54,7 @@ export default function PaymentsTab({
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
               <label className="block"><span className="mb-1 block text-xs text-slate-500">날짜</span>
                 <input className={inp} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
               <label className="block"><span className="mb-1 block text-xs text-slate-500">금액(원)</span>

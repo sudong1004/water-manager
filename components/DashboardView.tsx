@@ -1,6 +1,7 @@
 "use client";
+import { useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
-import { balanceOf, daysLeft, dueLabel, dueTone, monthOf, nextDue, pendingVisit, regionOf, sumBy, thisMonth, won } from "../lib/utils";
+import { addDays, todayStr, balanceOf, daysLeft, dueLabel, dueTone, monthOf, nextDue, pendingVisit, regionOf, sumBy, thisMonth, won } from "../lib/utils";
 
 function Stat({ label, value, tone = "text-slate-900", onClick }: { label: string; value: string | number; tone?: string; onClick?: () => void }) {
   return (
@@ -19,6 +20,99 @@ function Card({ title, action, children }: { title: string; action?: React.React
   );
 }
 const Empty = ({ t }: { t: string }) => <p className="py-3 text-center text-sm text-slate-400">{t}</p>;
+
+type Activity = { key: string; date: string; type: string; icon: string; label: string; detail: string; customerId: string };
+const TYPE_ICON: Record<string, string> = { 수납: "💰", 청구: "🧾", 방문: "🚗", 필터교체: "🔧", AS: "🛠", 상담: "💬", 민원: "⚠️", 특이사항: "📌" };
+const TYPE_ORDER = ["수납", "청구", "필터교체", "방문", "AS", "상담", "민원", "특이사항"];
+const PERIODS = [["all", "전체 기간"], ["7", "최근 7일"], ["30", "최근 30일"], ["90", "최근 3개월"]] as const;
+
+function dayLabel(d: string) {
+  const t = todayStr();
+  if (d === t) return "오늘";
+  if (d === addDays(t, -1)) return "어제";
+  return d.slice(5).replace("-", "/");
+}
+
+function ActivityFeed({ customers, payments, records, open }: { customers: Customer[]; payments: Payment[]; records: ServiceRecord[]; open: (id: string) => void }) {
+  const [type, setType] = useState("all");
+  const [period, setPeriod] = useState<(typeof PERIODS)[number][0]>("all");
+  const [q, setQ] = useState("");
+  const [limit, setLimit] = useState(10);
+  const nameOf = (id: string) => customers.find((c) => c.id === id)?.name ?? "(삭제된 고객)";
+
+  const all: Activity[] = [
+    ...payments.map((p): Activity => ({
+      key: "p" + p.id, date: p.date, type: p.kind, icon: TYPE_ICON[p.kind],
+      label: `${p.kind} ${won(p.amount)}`, detail: [p.method, p.memo].filter(Boolean).join(" · "), customerId: p.customerId,
+    })),
+    ...records.map((r): Activity => ({
+      key: "r" + r.id, date: r.date, type: r.type, icon: TYPE_ICON[r.type] ?? "📝",
+      label: r.type, detail: r.content, customerId: r.customerId,
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date)); // 같은 날짜는 저장 순서(최근 입력이 앞) 유지
+
+  const counts = new Map<string, number>();
+  all.forEach((a) => counts.set(a.type, (counts.get(a.type) ?? 0) + 1));
+  const types = TYPE_ORDER.filter((t) => counts.has(t));
+
+  const since = period === "all" ? "" : addDays(todayStr(), -Number(period));
+  const kw = q.trim().toLowerCase();
+  const list = all.filter((a) => {
+    if (type !== "all" && a.type !== type) return false;
+    if (since && a.date < since) return false;
+    if (kw && !(nameOf(a.customerId) + " " + a.detail + " " + a.label).toLowerCase().includes(kw)) return false;
+    return true;
+  });
+  const shown = list.slice(0, limit);
+  const reset = () => setLimit(10);
+  const chip = (k: string, label: string) => (
+    <button key={k} onClick={() => { setType(k); reset(); }}
+      className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${type === k ? "bg-sky-700 text-white" : "bg-slate-100 text-slate-600"}`}>{label}</button>
+  );
+
+  return (
+    <Card title="🕘 최근 활동" action={<span className="text-xs text-slate-400">{list.length}건</span>}>
+      <div className="-mx-1 mb-2 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        {chip("all", `전체 ${all.length}`)}
+        {types.map((t) => chip(t, `${TYPE_ICON[t]} ${t} ${counts.get(t)}`))}
+      </div>
+      <div className="mb-2 grid grid-cols-[1fr_auto] gap-2">
+        <input value={q} onChange={(e) => { setQ(e.target.value); reset(); }} type="search" placeholder="고객명 · 내용 검색"
+          className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none" />
+        <select value={period} onChange={(e) => { setPeriod(e.target.value as typeof period); reset(); }}
+          className="rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-700 focus:border-sky-500 focus:outline-none">
+          {PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+      </div>
+      {shown.length === 0 ? (
+        <Empty t={all.length === 0 ? "아직 기록이 없습니다. 고객 상세에서 수납·이력을 기록하거나 필터 교환 완료를 누르면 여기에 쌓입니다." : "조건에 맞는 기록이 없습니다."} />
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {shown.map((a) => (
+            <li key={a.key}>
+              <button onClick={() => open(a.customerId)} className="flex w-full items-start gap-3 py-2.5 text-left active:bg-slate-50">
+                <span className="mt-0.5 text-lg leading-none">{a.icon}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline gap-2">
+                    <span className="truncate font-medium">{nameOf(a.customerId)}</span>
+                    <span className="shrink-0 text-xs font-semibold text-sky-700">{a.label}</span>
+                  </span>
+                  {a.detail && <span className="block truncate text-xs text-slate-500">{a.detail}</span>}
+                </span>
+                <span className="shrink-0 text-xs text-slate-400">{dayLabel(a.date)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {list.length > limit && (
+        <button onClick={() => setLimit(limit + 10)} className="mt-2 w-full rounded-lg bg-slate-50 py-2.5 text-sm font-medium text-slate-600 active:bg-slate-100">
+          더 보기 ({list.length - limit}건 남음)
+        </button>
+      )}
+    </Card>
+  );
+}
 
 export default function DashboardView({
   customers, payments, records, open, go,
@@ -68,6 +162,8 @@ export default function DashboardView({
         <Stat label="이번 달 수납" value={won(monthPaid)} tone="text-emerald-600" onClick={() => go("payments")} />
         <Stat label="총 미수금" value={won(totalDebt)} tone={totalDebt ? "text-red-600" : "text-slate-400"} onClick={() => go("payments")} />
       </div>
+
+      <ActivityFeed customers={customers} payments={payments} records={records} open={open} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="📅 방문 예정">

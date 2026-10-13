@@ -12,7 +12,11 @@ export default function RecordsTab({
 }: { customerId: string; records: ServiceRecord[]; reload: () => Promise<void>; notify: (m: string) => void }) {
   const [form, setForm] = useState<Partial<ServiceRecord> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [ftype, setFtype] = useState("all");
   const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+  const typeCount = new Map<string, number>();
+  records.forEach((r) => typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1));
+  const visible = ftype === "all" ? sorted : sorted.filter((r) => r.type === ftype);
   const visit = pendingVisit(records);
 
   async function save(e: React.FormEvent) {
@@ -47,12 +51,12 @@ export default function RecordsTab({
                   className={`rounded-full px-3 py-1.5 text-sm font-medium ${form.type === t ? "bg-sky-700 text-white" : "bg-slate-100 text-slate-600"}`}>{ICON[t]} {t}</button>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
               <label className="block"><span className="mb-1 block text-xs text-slate-500">날짜</span>
                 <input className={inp} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
               <label className="block"><span className="mb-1 block text-xs text-slate-500">다음 방문 예정일 (선택)</span>
                 <input className={inp} type="date" value={form.nextVisit ?? ""} onChange={(e) => setForm({ ...form, nextVisit: e.target.value })} /></label>
-              <label className="col-span-2 block"><span className="mb-1 block text-xs text-slate-500">내용 · 특이사항</span>
+              <label className="block min-[400px]:col-span-2"><span className="mb-1 block text-xs text-slate-500">내용 · 특이사항</span>
                 <textarea className={inp} rows={3} value={form.content ?? ""} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder="예) 세디·카본 교체, 다음엔 오후 방문 요청" /></label>
             </div>
             <div className="flex gap-2">
@@ -61,9 +65,17 @@ export default function RecordsTab({
             </div>
           </form>
         )}
-        {sorted.length === 0 && !form && <p className="py-10 text-center text-sm text-slate-400">방문·상담 이력이 없습니다.</p>}
+        {records.length > 0 && !form && (
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+            {[["all", `전체 ${records.length}`], ...RECORD_TYPES.filter((t) => typeCount.has(t)).map((t) => [t, `${ICON[t]} ${t} ${typeCount.get(t)}`])].map(([k, l]) => (
+              <button key={k} onClick={() => setFtype(k)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${ftype === k ? "bg-sky-700 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>{l}</button>
+            ))}
+          </div>
+        )}
+        {records.length === 0 && !form && <p className="py-10 text-center text-sm text-slate-400">방문·상담 이력이 없습니다.</p>}
+        {records.length > 0 && visible.length === 0 && !form && <p className="py-6 text-center text-sm text-slate-400">이 종류의 기록이 없습니다.</p>}
         <ol className="space-y-2">
-          {sorted.map((r) => (
+          {visible.map((r) => (
             <li key={r.id} className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
               <div className="flex items-center gap-2 text-sm">
                 <span>{ICON[r.type]}</span><span className="font-semibold">{r.type}</span>

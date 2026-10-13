@@ -115,7 +115,7 @@ export default function CustomersView({
       {shown.length === 0 ? (
         <p className="py-20 text-center text-slate-400">{customers.length === 0 ? "등록된 고객이 없습니다." : "검색 결과가 없습니다."}</p>
       ) : (
-        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map(({ c, due, rg }) => {
             const group = sort === "region" ? `${rg.sigungu} ${rg.dong}`.trim() : "";
             const header = group && group !== lastGroup ? group : "";
