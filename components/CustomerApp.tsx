@@ -94,16 +94,16 @@ export default function CustomerApp() {
     <div className="mx-auto min-h-dvh max-w-6xl pb-28 sm:pb-10">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
-          <h1 className="text-lg font-bold text-sky-800">💧 정수기 고객관리</h1>
+          <h1 className="min-w-0 truncate text-base font-bold text-sky-800 sm:text-lg">💧 정수기 고객관리</h1>
           <nav className="hidden gap-1 sm:flex">
             {TABS.map((t) => (
               <button key={t.k} onClick={() => setTab(t.k)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === t.k ? "bg-sky-700 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{t.icon} {t.label}</button>
             ))}
           </nav>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setMode({ type: "new" })} className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white active:bg-sky-800">+ 신규등록</button>
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <button onClick={() => setMode({ type: "new" })} className="whitespace-nowrap rounded-lg bg-sky-700 px-3 py-2 sm:px-4 text-sm font-semibold text-white active:bg-sky-800">+ 신규등록</button>
             {USE_SUPABASE && (
-              <button onClick={logout} title={email} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 active:bg-slate-50">로그아웃</button>
+              <button onClick={logout} title={email} className="whitespace-nowrap rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-medium text-slate-600 active:bg-slate-50">로그아웃</button>
             )}
           </div>
         </div>
