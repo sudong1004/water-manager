@@ -1,6 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
 import type { Customer } from "../lib/types";
+import AddrLines from "./AddrLines";
+import AddrToggle from "./AddrToggle";
 import { dueLabel, dueTone, firstPhone, fullAddr, nextDue, pendingVisit, regionOf, toCSV, todayStr, won } from "../lib/utils";
 import type { ServiceRecord } from "../lib/types";
 
@@ -52,7 +54,7 @@ export default function CustomersView({
       if (dong && rg.dong !== dong) return false;
       if (debtOnly && !(balances.get(c.id) ?? 0)) return false;
       if (!kw) return true;
-      if ([c.id, c.name, c.contactPerson, fullAddr(c), c.note1, c.note2, c.memo, c.model].join(" ").toLowerCase().includes(kw)) return true;
+      if ([c.id, c.name, c.contactPerson, fullAddr(c), c.roadAddr ?? "", c.note1, c.note2, c.memo, c.model].join(" ").toLowerCase().includes(kw)) return true;
       return kd.length >= 3 && [c.mobile1, c.mobile2, c.tel1, c.tel2].some((p) => p.replace(/\D/g, "").includes(kd));
     });
     return [...r].sort((a, b) =>
@@ -105,6 +107,7 @@ export default function CustomersView({
         <select className={sel} value={mgmt} onChange={(e) => setMgmt(e.target.value)}>
           <option value="">관리방법 전체</option>{mgmtOptions.map((m) => <option key={m}>{m}</option>)}
         </select>
+        <AddrToggle />
         <button onClick={() => setDebtOnly(!debtOnly)} className={`rounded-lg border px-3 py-2 text-sm font-medium ${debtOnly ? "border-red-300 bg-red-50 text-red-700" : "border-slate-300 bg-white text-slate-600"}`}>미수금만</button>
         <span className="ml-auto flex items-center gap-2 text-sm text-slate-500">{shown.length}명
           <button onClick={download} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700">CSV</button>
@@ -133,7 +136,7 @@ export default function CustomersView({
                     </div>
                     {due && <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${dueTone(due.left)}`}>{dueLabel(due.left)}</span>}
                   </div>
-                  <div className="mt-2 line-clamp-2 text-sm text-slate-600">{fullAddr(c) || "주소 없음"}</div>
+                  <div className="mt-2 line-clamp-2 text-sm text-slate-600"><AddrLines c={c} /></div>
                   <div className="mt-2 flex items-center justify-between text-sm">
                     <span className="font-medium text-sky-700">{firstPhone(c) || "연락처 없음"}</span>
                     {due && <span className="text-xs text-slate-500">{due.filter.name} · {due.date}</span>}

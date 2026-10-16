@@ -38,6 +38,7 @@ export type Customer = {
   lat?: number;
   lng?: number;
   geoAddr?: string;
+  roadAddr?: string; // 카카오가 변환해 준 도로명 주소 (찾지 못하면 빈 문자열)
 };
 
 export type Payment = {
@@ -60,6 +61,7 @@ export type ServiceRecord = {
   type: RecordType;
   content: string;
   nextVisit: string; // 다음 방문 예정일 (선택)
+  filters?: { name: string; prev: string }[]; // 필터교체 기록과 연결된 필터 (prev = 교체 전 교환일)
 };
 
 export type ImportLog = {

@@ -40,6 +40,13 @@ export const cycleLabel = (days: number) =>
 
 export const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 export const fullAddr = (c: Customer) => `${c.addr1} ${c.addr2}`.trim();
+/** 주소2에서 번지를 뺀 나머지 (건물명·동호수) */
+const addrDetail = (c: Pick<Customer, "addr2">) => c.addr2.trim().replace(/^(산\s*)?\d+(-\d+)?\s*번?지?/, "").replace(/@/g, " ").replace(/\s+/g, " ").trim();
+/** 도로명 주소 + 건물명·동호수. 아직 변환 전이면 빈 문자열 */
+export const roadFull = (c: Customer) => (c.roadAddr && c.geoAddr === mapAddress(c) ? `${c.roadAddr} ${addrDetail(c)}`.trim() : "");
+export type AddrMode = "jibun" | "road" | "both";
+/** 보기 방식에 맞는 주소 한 줄 (도로명이 아직 없으면 지번으로 대신 보여줌) */
+export const addrByMode = (c: Customer, mode: AddrMode) => (mode === "road" ? roadFull(c) || fullAddr(c) : fullAddr(c));
 export const phones = (c: Customer) => [c.mobile1, c.mobile2, c.tel1, c.tel2].filter(Boolean);
 export const firstPhone = (c: Customer) => phones(c)[0] ?? "";
 
@@ -60,7 +67,7 @@ export function toCSV(list: Customer[]) {
   const head = ["관리번호","등록일자","담당자","고객명","고객정보","우편번호","주소","연락처1","연락처2","휴대폰1","휴대폰2","비고1","비고2","모델명","관리방법","판매구분","월납입액","필터(주기/최근교환/예정)"];
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const rows = list.map((c) =>
-    [c.id, c.regDate, c.manager, c.name, c.contactPerson, c.zip, fullAddr(c), c.tel1, c.tel2, c.mobile1, c.mobile2,
+    [c.id, c.regDate, c.manager, c.name, c.contactPerson, c.zip, fullAddr(c), c.roadAddr ?? "", c.tel1, c.tel2, c.mobile1, c.mobile2,
      c.note1, c.note2, c.model, c.mgmtType, c.saleType, c.monthlyFee,
      c.filters.map((f) => `${f.name} ${f.cycleDays}일/${f.lastChange}/${dueDate(f)}`).join(" | ")].map(esc).join(",")
   );

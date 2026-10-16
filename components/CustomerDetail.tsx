@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
-import { balanceOf, cycleLabel, daysLeft, dueDate, dueLabel, dueTone, fullAddr, pendingVisit, regionOf, todayStr, won } from "../lib/utils";
+import { balanceOf, cycleLabel, daysLeft, dueDate, dueLabel, dueTone, fullAddr, roadFull, pendingVisit, regionOf, todayStr, won } from "../lib/utils";
+import AddrLines from "./AddrLines";
+import AddrToggle from "./AddrToggle";
 import PaymentsTab from "./PaymentsTab";
 import RecordsTab from "./RecordsTab";
 
@@ -16,17 +18,26 @@ function Row({ label, value }: { label: string; value?: string | number }) {
 }
 
 export default function CustomerDetail({
-  c, payments, records, onEdit, onDelete, onReplace, onReplaceAll, reload, notify,
+  c, payments, records, onEdit, onDelete, onReplace, onRecordChange, reload, notify,
 }: {
   c: Customer; payments: Payment[]; records: ServiceRecord[]; onEdit: () => void; onDelete: () => void;
-  onReplace: (i: number) => void; onReplaceAll: () => void; reload: () => Promise<void>; notify: (m: string) => void;
+  onReplace: (idx: number[], date: string) => Promise<void>; onRecordChange: (customerId: string, old?: ServiceRecord, savedId?: string) => Promise<void>;
+  reload: () => Promise<void>; notify: (m: string) => void;
 }) {
   const [tab, setTab] = useState<"info" | "pay" | "rec">("info");
+  const [rep, setRep] = useState<{ target: number[]; date: string } | null>(null);
+  const [repBusy, setRepBusy] = useState(false);
+  async function confirmRep() {
+    if (!rep || repBusy) return;
+    setRepBusy(true);
+    try { await onReplace(rep.target, rep.date); setRep(null); } catch (e) { notify((e as Error).message); } finally { setRepBusy(false); }
+  }
   const bal = balanceOf(payments);
   const visit = pendingVisit(records);
   const rg = regionOf(c);
   const phones = [c.mobile1, c.mobile2, c.tel1, c.tel2].filter(Boolean);
   const addr = fullAddr(c);
+  const roadAddr = roadFull(c);
   return (
     <div className="flex h-full flex-col">
       <div className="flex border-b border-slate-200 bg-white">
@@ -36,7 +47,7 @@ export default function CustomerDetail({
         ))}
       </div>
       {tab === "pay" && <PaymentsTab customerId={c.id} monthlyFee={c.monthlyFee} payments={payments} reload={reload} notify={notify} />}
-      {tab === "rec" && <RecordsTab customerId={c.id} records={records} reload={reload} notify={notify} />}
+      {tab === "rec" && <RecordsTab customerId={c.id} records={records} reload={reload} notify={notify} onChange={onRecordChange} />}
       {tab === "info" && (<>
       <div className="flex-1 space-y-4 overflow-y-auto bg-slate-100 p-4">
         {(bal > 0 || visit) && (
@@ -56,7 +67,10 @@ export default function CustomerDetail({
               <a href={`sms:${phones[0].replace(/[^\d+]/g, "")}`} className="inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 active:bg-slate-200">✉ 문자</a>
             )}
             {addr && (
-              <a href={`https://map.naver.com/p/search/${encodeURIComponent(addr)}`} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 active:bg-emerald-100">🗺 지도</a>
+              <a href={`https://map.naver.com/p/search/${encodeURIComponent(roadAddr || addr)}`} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 active:bg-emerald-100">🗺 네이버 지도</a>
+            )}
+            {addr && (
+              <a href={`https://map.kakao.com/link/search/${encodeURIComponent(roadAddr || addr)}`} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-yellow-50 px-4 py-2 text-sm font-medium text-yellow-800 active:bg-yellow-100">🗺 카카오맵</a>
             )}
           </div>
           <dl className="divide-y divide-slate-100">
@@ -68,7 +82,10 @@ export default function CustomerDetail({
             <Row label="소개처" value={c.referrer} />
             <Row label="지역" value={[rg.sigungu, rg.dong].filter(Boolean).join(" · ")} />
             <Row label="우편번호" value={c.zip} />
-            <Row label="주소" value={addr} />
+            <div className="flex gap-3 py-1.5 text-sm">
+              <dt className="w-20 shrink-0 text-slate-500">주소</dt>
+              <dd className="min-w-0 flex-1 space-y-1.5 text-slate-900"><AddrLines c={c} copy onCopied={notify} /><AddrToggle /></dd>
+            </div>
             <Row label="전자메일" value={c.email} />
           </dl>
         </section>
@@ -89,10 +106,22 @@ export default function CustomerDetail({
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-sky-800">필터 교환</h3>
             {c.filters.length > 0 && (
-              <button onClick={onReplaceAll} className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 active:bg-sky-100">전체 오늘 교환</button>
+              <button onClick={() => setRep({ target: c.filters.map((_, i) => i), date: todayStr() })} className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 active:bg-sky-100">전체 교환</button>
             )}
           </div>
           {c.filters.length === 0 && <p className="text-sm text-slate-400">등록된 필터가 없습니다.</p>}
+          {rep && (
+            <div className="mb-3 space-y-2 rounded-xl bg-sky-50 p-3 ring-1 ring-sky-200">
+              <p className="text-sm font-semibold text-sky-800">{rep.target.map((i) => c.filters[i]?.name).filter(Boolean).join(", ")} 교환</p>
+              <label className="block"><span className="mb-1 block text-xs text-slate-500">교환일</span>
+                <input type="date" max={todayStr()} value={rep.date} onChange={(e) => setRep({ ...rep, date: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200" /></label>
+              <div className="flex gap-2">
+                <button onClick={() => setRep(null)} disabled={repBusy} className="flex-1 rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-600">취소</button>
+                <button onClick={confirmRep} disabled={repBusy || !rep.date} className="flex-[2] rounded-xl bg-sky-700 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{repBusy ? "저장 중…" : "교환 완료"}</button>
+              </div>
+            </div>
+          )}
           <ul className="divide-y divide-slate-100">
             {c.filters.map((f, i) => {
               const d = dueDate(f);
@@ -108,7 +137,7 @@ export default function CustomerDetail({
                       주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange} · 예정 {d}
                     </div>
                   </div>
-                  <button onClick={() => onReplace(i)} disabled={f.lastChange === todayStr()}
+                  <button onClick={() => setRep({ target: [i], date: todayStr() })} disabled={f.lastChange >= todayStr() || repBusy}
                     className="shrink-0 rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 active:bg-sky-50 disabled:opacity-40">교환 완료</button>
                 </li>
               );
