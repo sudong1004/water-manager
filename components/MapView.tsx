@@ -30,11 +30,10 @@ const tried = new Set<string>(); // 이번 접속에서 이미 시도한 (고객
 const triedKey = (c: Customer) => `${c.id}|${mapAddress(c)}`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** 주소 → 좌표. ① 번지까지 ② 아파트·건물명 키워드 ③ 동(주소1)까지만 — 순서대로 시도한다. */
+/** 주소 → 좌표. 번지까지 넣은 주소로 먼저 찾고, 실패하면 동(주소1)까지만으로 다시 찾는다. */
 function geocode(kakao: any, c: Customer): Promise<{ lat: number; lng: number } | null> {
   const geocoder = new kakao.maps.services.Geocoder();
-  const places = new kakao.maps.services.Places();
-  const addrSearch = (q: string) =>
+  const search = (q: string) =>
     new Promise<{ lat: number; lng: number } | null>((resolve) => {
       if (!q) return resolve(null);
       geocoder.addressSearch(q, (res: any[], status: string) => {
@@ -42,24 +41,7 @@ function geocode(kakao: any, c: Customer): Promise<{ lat: number; lng: number } 
         else resolve(null);
       });
     });
-  const keyword = (q: string) =>
-    new Promise<{ lat: number; lng: number } | null>((resolve) => {
-      if (!q) return resolve(null);
-      places.keywordSearch(q, (res: any[], status: string) => {
-        if (status === kakao.maps.services.Status.OK && res[0]) resolve({ lat: Number(res[0].y), lng: Number(res[0].x) });
-        else resolve(null);
-      });
-    });
-  // 주소2에서 번지·동호수를 뺀 건물명 (예: "1126번지 휴먼시아@ 206동309호" → "휴먼시아")
-  const building = c.addr2
-    .replace(/^(산\s*)?\d+(-\d+)?\s*번?지?/, "")
-    .replace(/[@()\[\]]/g, " ")
-    .replace(/\d+\s*동.*$/, "")
-    .replace(/\d+\s*호.*$/, "")
-    .trim();
-  return addrSearch(mapAddress(c))
-    .then((r) => r ?? (building ? keyword(`${c.addr1.trim()} ${building}`) : null))
-    .then((r) => r ?? addrSearch(c.addr1.trim()));
+  return search(mapAddress(c)).then((r) => r ?? search(c.addr1.trim()));
 }
 
 type Seg = "all" | "overdue" | "soon" | "debt";
@@ -87,7 +69,6 @@ export default function MapView({
   const [sel, setSel] = useState<string | null>(null);
   const [prog, setProg] = useState<{ done: number; total: number } | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
-  const [retry, setRetry] = useState(0);
   
   // SDK 로드 + 지도 생성
   useEffect(() => {
@@ -104,8 +85,7 @@ export default function MapView({
   }, []);
 
   // 좌표가 없는(또는 주소가 바뀐) 고객을 순서대로 변환해서 저장
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const todo = useMemo(() => customers.filter((c) => c.addr1.trim() && !hasCoord(c) && !tried.has(triedKey(c))), [customers, retry]);
+  const todo = useMemo(() => customers.filter((c) => c.addr1.trim() && !hasCoord(c) && !tried.has(triedKey(c))), [customers]);
   useEffect(() => {
     if (!kakao || geoBusy || todo.length === 0) return;
     geoBusy = true;
@@ -144,13 +124,6 @@ export default function MapView({
     return true;
   }), [customers, seg, sigungu, balances]);
 
-  // 같은 좌표(같은 아파트·건물)에 있는 고객은 한 핀으로 묶는다 — 겹쳐서 안 보이는 일을 막기 위해
-  const groups = useMemo(() => {
-    const m = new Map<string, Customer[]>();
-    shown.forEach((c) => { const k = `${c.lat!.toFixed(5)},${c.lng!.toFixed(5)}`; m.set(k, [...(m.get(k) ?? []), c]); });
-    return Array.from(m.entries()).map(([key, list]) => ({ key, list }));
-  }, [shown]);
-
   // 마커 그리기 (필터가 바뀔 때만 지도 영역을 다시 맞춤)
   const lastKey = useRef("");
   useEffect(() => {
@@ -159,29 +132,26 @@ export default function MapView({
     overlays.current.forEach((o) => o.setMap(null));
     overlays.current = [];
     const bounds = new kakao.maps.LatLngBounds();
-    const rank = (bg: string) => (bg.includes("red") ? 0 : bg.includes("amber") ? 1 : bg.includes("emerald") ? 2 : 3);
-    groups.forEach(({ key: gk, list }) => {
-      const first = list[0];
-      const pos = new kakao.maps.LatLng(first.lat!, first.lng!);
-      const debt = list.some((c) => (balances.get(c.id) ?? 0) > 0);
-      const bg = list.map((c) => pinColor(c, false).bg).sort((x, y) => rank(x) - rank(y))[0];
-      const label = (list.length > 1 ? `${first.name} 외 ${list.length - 1}` : first.name).replace(/[<>&]/g, "");
+    shown.forEach((c) => {
+      const pos = new kakao.maps.LatLng(c.lat!, c.lng!);
+      const debt = (balances.get(c.id) ?? 0) > 0;
+      const { bg } = pinColor(c, debt);
       const el = document.createElement("button");
       el.type = "button";
-      el.setAttribute("data-pin", gk);
+      el.setAttribute("data-pin", c.id);
       el.className = "relative -translate-x-1/2 cursor-pointer";
       el.innerHTML =
-        `<span class="flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white ${bg} px-1 text-[11px] font-bold text-white shadow-lg ring-1 ring-black/20">${list.length > 1 ? list.length : ""}</span>` +
+        `<span class="block h-6 w-6 rounded-full border-2 border-white ${bg} shadow-lg ring-1 ring-black/20"></span>` +
         (debt ? `<span class="absolute -right-2 -top-2 rounded-full bg-white px-1 text-[10px] font-bold text-red-600 shadow ring-1 ring-red-300">₩</span>` : "") +
-        `<span class="absolute left-1/2 top-7 -translate-x-1/2 whitespace-nowrap rounded bg-white/90 px-1 text-[10px] font-semibold text-slate-700 shadow">${label}</span>`;
-      el.addEventListener("click", () => setSel(gk));
+        `<span class="absolute left-1/2 top-7 -translate-x-1/2 whitespace-nowrap rounded bg-white/90 px-1 text-[10px] font-semibold text-slate-700 shadow">${c.name.replace(/[<>&]/g, "")}</span>`;
+      el.addEventListener("click", () => setSel(c.id));
       const ov = new kakao.maps.CustomOverlay({ position: pos, content: el, yAnchor: 0.5 });
       ov.setMap(mapRef.current);
       overlays.current.push(ov);
       bounds.extend(pos);
     });
     if (shown.length && key !== lastKey.current) { mapRef.current.setBounds(bounds); lastKey.current = key; }
-  }, [kakao, shown, groups, seg, sigungu, balances]);
+  }, [kakao, shown, seg, sigungu, balances]);
 
   // 지도 영역이 탭 전환 등으로 크기가 바뀔 때 보정
   useEffect(() => { if (kakao && mapRef.current) setTimeout(() => mapRef.current.relayout(), 100); }, [kakao]);
@@ -207,34 +177,10 @@ export default function MapView({
   const chip = (k: Seg, label: string) => (
     <button key={k} onClick={() => setSeg(k)} className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold ${seg === k ? "bg-sky-700 text-white" : "bg-white text-slate-600 ring-1 ring-slate-300"}`}>{label}</button>
   );
-  const pickedGroup = sel ? groups.find((g) => g.key === sel) : undefined;
-  const missing = customers.filter((c) => c.addr1.trim() && !hasCoord(c));
-
-  const CustomerRow = ({ c, solo }: { c: Customer; solo: boolean }) => {
-    const due = nextDue(c);
-    const bal = balances.get(c.id) ?? 0;
-    const phone = firstPhone(c);
-    return (
-      <div className={solo ? "" : "rounded-lg bg-slate-50 p-2.5 ring-1 ring-slate-200"}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="truncate text-base font-bold">{c.name}</div>
-            <div className="mt-0.5 text-sm text-slate-600">{fullAddr(c)}</div>
-          </div>
-          {solo && <button onClick={() => setSel(null)} className="rounded px-2 py-1 text-slate-400" aria-label="닫기">✕</button>}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {due && <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${dueTone(due.left)}`}>{due.filter.name} {dueLabel(due.left)}</span>}
-          {bal > 0 && <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">미수 {won(bal)}</span>}
-        </div>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {phone ? <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="rounded-lg bg-sky-700 py-2.5 text-center text-sm font-semibold text-white active:bg-sky-800">📞 전화</a> : <span className="rounded-lg bg-slate-100 py-2.5 text-center text-sm text-slate-400">전화 없음</span>}
-          <a href={`https://map.kakao.com/link/to/${encodeURIComponent(c.name)},${c.lat},${c.lng}`} target="_blank" rel="noreferrer" className="rounded-lg bg-emerald-600 py-2.5 text-center text-sm font-semibold text-white active:bg-emerald-700">🚗 길찾기</a>
-          <button onClick={() => open(c.id)} className="rounded-lg border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 active:bg-slate-50">상세</button>
-        </div>
-      </div>
-    );
-  };
+  const picked = sel ? customers.find((c) => c.id === sel) : undefined;
+  const pickedDue = picked ? nextDue(picked) : null;
+  const pickedBal = picked ? balances.get(picked.id) ?? 0 : 0;
+  const phone = picked ? firstPhone(picked) : "";
 
   if (!KEY) {
     return (
@@ -278,41 +224,32 @@ export default function MapView({
           {shown.length}명 표시 · <span className="text-red-600">●</span>지연 <span className="text-amber-500">●</span>임박 <span className="text-emerald-600">●</span>정상
         </div>
 
-        {pickedGroup && (
-          <div className="absolute inset-x-3 bottom-3 z-10 max-h-[70%] overflow-y-auto rounded-xl bg-white p-4 shadow-2xl ring-1 ring-slate-200">
-            {pickedGroup.list.length === 1 ? (
-              <CustomerRow c={pickedGroup.list[0]} solo />
-            ) : (
-              <>
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-sm font-bold text-sky-800">📍 같은 위치 {pickedGroup.list.length}명</div>
-                  <button onClick={() => setSel(null)} className="rounded px-2 py-1 text-slate-400" aria-label="닫기">✕</button>
-                </div>
-                <div className="space-y-2">{pickedGroup.list.map((c) => <CustomerRow key={c.id} c={c} solo={false} />)}</div>
-              </>
-            )}
+        {picked && (
+          <div className="absolute inset-x-3 bottom-3 z-10 rounded-xl bg-white p-4 shadow-2xl ring-1 ring-slate-200">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="truncate text-base font-bold">{picked.name}</div>
+                <div className="mt-0.5 text-sm text-slate-600">{fullAddr(picked)}</div>
+              </div>
+              <button onClick={() => setSel(null)} className="rounded px-2 py-1 text-slate-400" aria-label="닫기">✕</button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {pickedDue && <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${dueTone(pickedDue.left)}`}>{pickedDue.filter.name} {dueLabel(pickedDue.left)}</span>}
+              {pickedBal > 0 && <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">미수 {won(pickedBal)}</span>}
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {phone ? <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="rounded-lg bg-sky-700 py-2.5 text-center text-sm font-semibold text-white active:bg-sky-800">📞 전화</a> : <span className="rounded-lg bg-slate-100 py-2.5 text-center text-sm text-slate-400">전화 없음</span>}
+              <a href={`https://map.kakao.com/link/to/${encodeURIComponent(picked.name)},${picked.lat},${picked.lng}`} target="_blank" rel="noreferrer" className="rounded-lg bg-emerald-600 py-2.5 text-center text-sm font-semibold text-white active:bg-emerald-700">🚗 길찾기</a>
+              <button onClick={() => open(picked.id)} className="rounded-lg border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 active:bg-slate-50">상세</button>
+            </div>
           </div>
         )}
       </div>
 
-      {missing.length > 0 && !prog && (
-        <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          <div className="flex items-center justify-between gap-2">
-            <b>지도에서 위치를 찾지 못한 고객 {missing.length}명</b>
-            <button onClick={() => { tried.clear(); setFailed([]); setRetry((n) => n + 1); }} className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-300 active:bg-amber-100">다시 찾기</button>
-          </div>
-          <ul className="mt-2 divide-y divide-amber-100">
-            {missing.map((c) => (
-              <li key={c.id}>
-                <button onClick={() => open(c.id)} className="flex w-full items-baseline gap-2 py-1.5 text-left">
-                  <span className="shrink-0 font-semibold">{c.name}</span>
-                  <span className="min-w-0 truncate text-xs text-amber-700">{fullAddr(c)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-1 text-xs text-amber-700">주소(주소1·번지)를 고쳐 저장하면 자동으로 다시 찾습니다.</p>
-        </div>
+      {failed.length > 0 && (
+        <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          위치를 찾지 못한 고객 {failed.length}명: {failed.slice(0, 8).join(", ")}{failed.length > 8 ? " 외" : ""}. 주소를 확인하고 수정하면 다음에 다시 시도합니다.
+        </p>
       )}
       {customers.length > 0 && customers.filter((c) => !c.addr1.trim()).length > 0 && (
         <p className="mt-2 text-xs text-slate-400">주소가 없는 고객 {customers.filter((c) => !c.addr1.trim()).length}명은 지도에 표시되지 않습니다.</p>

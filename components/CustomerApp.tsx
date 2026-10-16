@@ -72,43 +72,13 @@ export default function CustomerApp() {
       setToast("저장되었습니다."); await load(); setMode({ type: "view", id: updated.id });
     }
   }
-  /** 필터 교환 완료: 선택한 날짜로 교환일 갱신 + 방문 이력(필터교체) 기록 (필터 정보 연결) */
-  async function replaceFilters(c: Customer, idx: number[], date: string) {
-    const targets = idx.filter((i) => c.filters[i] && c.filters[i].lastChange < date);
-    if (!targets.length) { setToast("이미 같은 날짜 이후에 교환 기록이 있습니다."); return; }
-    const names = targets.map((i) => c.filters[i].name);
-    const next = { ...c, filters: c.filters.map((f, j) => (targets.includes(j) ? { ...f, lastChange: date } : f)) };
+  /** 필터 교환 완료: 교환일 갱신 + 방문 이력(필터교체) 자동 기록 */
+  async function replaceFilters(c: Customer, idx: number[]) {
+    const names = idx.map((i) => c.filters[i].name);
+    const next = { ...c, filters: c.filters.map((f, j) => (idx.includes(j) ? { ...f, lastChange: todayStr() } : f)) };
     await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify(next) });
-    await api("/api/records", { method: "POST", body: JSON.stringify({
-      customerId: c.id, date, type: "필터교체", content: `${names.join(", ")} 교체`, nextVisit: "",
-      filters: targets.map((i) => ({ name: c.filters[i].name, prev: c.filters[i].lastChange })),
-    }) });
-    setToast(`${names.join(", ")} 교환 완료 (${date}) · 이력에 기록됨`); await load();
-  }
-  /** 이력(필터교체)을 추가·수정·삭제했을 때 필터의 최근 교환일을 이력 기준으로 다시 맞춤 */
-  async function syncFilters(customerId: string, old?: ServiceRecord, savedId?: string) {
-    const [cs, rs]: [Customer[], ServiceRecord[]] = await Promise.all([api("/api/customers"), api("/api/records")]);
-    const c = cs.find((x) => x.id === customerId);
-    if (!c) return;
-    const mine = rs.filter((r) => r.customerId === customerId && r.type === "필터교체");
-    const namesOf = (r?: ServiceRecord) =>
-      !r || r.type !== "필터교체" ? [] : r.filters?.length ? r.filters.map((f) => f.name) : c.filters.filter((f) => r.content?.includes(f.name)).map((f) => f.name);
-    const saved = savedId ? rs.find((r) => r.id === savedId) : undefined;
-    const affected = new Set([...namesOf(old), ...namesOf(saved)]);
-    let changed = false;
-    const filters = c.filters.map((f) => {
-      if (!affected.has(f.name)) return f;
-      const dates = mine.filter((r) => namesOf(r).includes(f.name)).map((r) => r.date);
-      const prev = old?.filters?.find((x) => x.name === f.name)?.prev;
-      const last = dates.length ? dates.sort().at(-1)! : prev ?? f.lastChange;
-      if (last === f.lastChange) return f;
-      changed = true;
-      return { ...f, lastChange: last };
-    });
-    if (changed) {
-      await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...c, filters }) });
-      setToast("이력 기준으로 필터 교환일도 함께 수정했습니다.");
-    }
+    await api("/api/records", { method: "POST", body: JSON.stringify({ customerId: c.id, date: todayStr(), type: "필터교체", content: `${names.join(", ")} 교체`, nextVisit: "" }) });
+    setToast(`${names.join(", ")} 교환 완료 · 이력에 기록됨`); await load();
   }
   async function remove(c: Customer) {
     if (!confirm(`"${c.name}" 고객을 삭제할까요?\n수납·이력 기록도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
@@ -174,10 +144,11 @@ export default function CustomerApp() {
                 <CustomerDetail key={current.id} c={current}
                   payments={payments.filter((p) => p.customerId === current.id)}
                   records={records.filter((r) => r.customerId === current.id)}
-                  reload={load} notify={setToast} onRecordChange={syncFilters}
+                  reload={load} notify={setToast}
                   onEdit={() => setMode({ type: "edit", id: current.id })}
                   onDelete={() => remove(current)}
-                  onReplace={(idx, date) => replaceFilters(current, idx, date)} />
+                  onReplace={(i) => replaceFilters(current, [i])}
+                  onReplaceAll={() => replaceFilters(current, current.filters.map((_, i) => i))} />
               )}
             </div>
           </div>

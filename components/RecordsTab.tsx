@@ -8,11 +8,8 @@ const inp = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focu
 const ICON: Record<string, string> = { 방문: "🚗", 필터교체: "🔧", AS: "🛠", 상담: "💬", 민원: "⚠️", 특이사항: "📌" };
 
 export default function RecordsTab({
-  customerId, records, reload, notify, onChange,
-}: {
-  customerId: string; records: ServiceRecord[]; reload: () => Promise<void>; notify: (m: string) => void;
-  onChange: (customerId: string, old?: ServiceRecord, savedId?: string) => Promise<void>;
-}) {
+  customerId, records, reload, notify,
+}: { customerId: string; records: ServiceRecord[]; reload: () => Promise<void>; notify: (m: string) => void }) {
   const [form, setForm] = useState<Partial<ServiceRecord> | null>(null);
   const [saving, setSaving] = useState(false);
   const [ftype, setFtype] = useState("all");
@@ -28,17 +25,14 @@ export default function RecordsTab({
     if (!form.content?.trim() && !form.nextVisit) return notify("내용을 입력해 주세요.");
     setSaving(true);
     try {
-      const old = form.id ? records.find((r) => r.id === form.id) : undefined;
-      let savedId = form.id;
       if (form.id) await api(`/api/records/${form.id}`, { method: "PUT", body: JSON.stringify(form) });
-      else savedId = (await api("/api/records", { method: "POST", body: JSON.stringify({ ...form, customerId }) })).id;
-      await onChange(customerId, old, savedId);
+      else await api("/api/records", { method: "POST", body: JSON.stringify({ ...form, customerId }) });
       await reload(); notify("기록되었습니다."); setForm(null);
     } catch (err) { notify((err as Error).message); } finally { setSaving(false); }
   }
   async function del(r: ServiceRecord) {
-    if (!confirm(r.type === "필터교체" ? "이 기록을 삭제할까요?\n필터 교환일도 이전 기록 기준으로 되돌아갑니다." : "이 기록을 삭제할까요?")) return;
-    await api(`/api/records/${r.id}`, { method: "DELETE" }); await onChange(customerId, r); await reload(); notify("삭제되었습니다.");
+    if (!confirm("이 기록을 삭제할까요?")) return;
+    await api(`/api/records/${r.id}`, { method: "DELETE" }); await reload(); notify("삭제되었습니다.");
   }
 
   return (
