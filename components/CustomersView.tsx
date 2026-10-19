@@ -10,10 +10,10 @@ type Seg = "all" | "overdue" | "soon" | "ok";
 type Sort = "due" | "region" | "name" | "recent";
 
 export default function CustomersView({
-  customers, balances, records, initialSeg, open, onNew,
+  customers, balances, records, initialSeg, open, onImport, onNew,
 }: {
   customers: Customer[]; balances: Map<string, number>; records: ServiceRecord[];
-  initialSeg: Seg; open: (id: string) => void; onNew: () => void;
+  initialSeg: Seg; open: (id: string) => void; onImport: () => void; onNew: () => void;
 }) {
   const [q, setQ] = useState("");
   const [seg, setSeg] = useState<Seg>(initialSeg);
@@ -111,7 +111,8 @@ export default function CustomersView({
         <button onClick={() => setDebtOnly(!debtOnly)} className={`rounded-lg border px-3 py-2 text-sm font-medium ${debtOnly ? "border-red-300 bg-red-50 text-red-700" : "border-slate-300 bg-white text-slate-600"}`}>미수금만</button>
         <span className="ml-auto flex items-center gap-2 text-sm text-slate-500">{shown.length}명
           <button onClick={download} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700">CSV</button>
-          <button onClick={onNew} className="hidden rounded-lg bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white sm:block">+ 신규등록</button>
+          <button onClick={onImport} className="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-semibold text-sky-800 active:bg-sky-100">📥 가져오기</button>
+          <button onClick={onNew} className="rounded-lg bg-sky-700 px-2.5 py-1.5 text-xs font-semibold text-white active:bg-sky-800">+ 신규등록</button>
         </span>
       </div>
 

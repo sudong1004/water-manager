@@ -23,7 +23,6 @@ const TABS: { k: Tab; icon: string; label: string }[] = [
   { k: "map", icon: "🗺", label: "지도" },
   { k: "calendar", icon: "📅", label: "달력" },
   { k: "payments", icon: "💰", label: "수납" },
-  { k: "import", icon: "📥", label: "가져오기" },
 ];
 
 export default function CustomerApp() {
@@ -129,11 +128,10 @@ export default function CustomerApp() {
           <h1 className="min-w-0 truncate text-base font-bold text-sky-800 sm:text-lg">💧 정수기 고객관리</h1>
           <nav className="hidden gap-1 sm:flex">
             {TABS.map((t) => (
-              <button key={t.k} onClick={() => setTab(t.k)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === t.k ? "bg-sky-700 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{t.icon} {t.label}</button>
+              <button key={t.k} onClick={() => setTab(t.k)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${(tab === "import" ? "customers" : tab) === t.k ? "bg-sky-700 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{t.icon} {t.label}</button>
             ))}
           </nav>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <button onClick={() => setMode({ type: "new" })} className="whitespace-nowrap rounded-lg bg-sky-700 px-3 py-2 sm:px-4 text-sm font-semibold text-white active:bg-sky-800">+ 신규등록</button>
             {USE_SUPABASE && (
               <button onClick={logout} title={email} className="whitespace-nowrap rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-medium text-slate-600 active:bg-slate-50">로그아웃</button>
             )}
@@ -146,7 +144,7 @@ export default function CustomerApp() {
       ) : (
         <main>
           {tab === "home" && <DashboardView customers={list} payments={payments} records={records} open={open} go={go} />}
-          {tab === "customers" && <CustomersView key={segKey} customers={list} balances={balances} records={records} initialSeg={seg} open={open} onNew={() => setMode({ type: "new" })} />}
+          {tab === "customers" && <CustomersView key={segKey} customers={list} balances={balances} records={records} initialSeg={seg} open={open} onImport={() => setTab("import")} onNew={() => setMode({ type: "new" })} />}
           {tab === "map" && <MapView customers={list} balances={balances} open={open} reload={load} notify={setToast} />}
           {tab === "calendar" && <CalendarView customers={list} payments={payments} records={records} open={open} reload={load} notify={setToast} />}
           {tab === "payments" && <PaymentsView customers={list} payments={payments} open={open} />}
@@ -155,9 +153,9 @@ export default function CustomerApp() {
       )}
 
       {/* 모바일 하단 메뉴 */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
         {TABS.map((t) => (
-          <button key={t.k} onClick={() => setTab(t.k)} className={`flex flex-col items-center gap-0.5 py-2.5 text-xs font-semibold ${tab === t.k ? "text-sky-700" : "text-slate-400"}`}>
+          <button key={t.k} onClick={() => setTab(t.k)} className={`flex flex-col items-center gap-0.5 py-2.5 text-xs font-semibold ${(tab === "import" ? "customers" : tab) === t.k ? "text-sky-700" : "text-slate-400"}`}>
             <span className="text-xl leading-none">{t.icon}</span>{t.label}
           </button>
         ))}
