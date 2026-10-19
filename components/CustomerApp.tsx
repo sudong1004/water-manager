@@ -122,7 +122,7 @@ export default function CustomerApp() {
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-6xl pb-28 sm:pb-10">
+    <div className="mx-auto min-h-dvh max-w-6xl pb-32 sm:pb-10">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <h1 className="min-w-0 truncate text-base font-bold text-sky-800 sm:text-lg">💧 정수기 고객관리</h1>
@@ -153,9 +153,9 @@ export default function CustomerApp() {
       )}
 
       {/* 모바일 하단 메뉴 */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
+      <nav className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mx-auto grid max-w-md grid-cols-5 gap-1 rounded-[28px] bg-white/95 p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.18)] ring-1 ring-slate-200 backdrop-blur sm:hidden">
         {TABS.map((t) => (
-          <button key={t.k} onClick={() => setTab(t.k)} className={`flex flex-col items-center gap-0.5 py-2.5 text-xs font-semibold ${(tab === "import" ? "customers" : tab) === t.k ? "text-sky-700" : "text-slate-400"}`}>
+          <button key={t.k} onClick={() => setTab(t.k)} className={`flex flex-col items-center gap-0.5 rounded-[22px] py-2 text-[11px] font-semibold transition-colors ${(tab === "import" ? "customers" : tab) === t.k ? "bg-sky-100 text-sky-800" : "text-slate-400 active:bg-slate-100"}`}>
             <span className="text-xl leading-none">{t.icon}</span>{t.label}
           </button>
         ))}
@@ -185,7 +185,7 @@ export default function CustomerApp() {
         </div>
       )}
 
-      {toast && <div className="fixed bottom-24 left-1/2 z-40 max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg sm:bottom-8">{toast}</div>}
+      {toast && <div className="fixed bottom-28 left-1/2 z-40 max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg sm:bottom-8">{toast}</div>}
     </div>
   );
 }
