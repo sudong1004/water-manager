@@ -12,14 +12,16 @@ import CustomersView from "./CustomersView";
 import PaymentsView from "./PaymentsView";
 import ImportView from "./ImportView";
 import MapView from "./MapView";
+import CalendarView from "./CalendarView";
 
-type Tab = "home" | "customers" | "map" | "payments" | "import";
+type Tab = "home" | "customers" | "map" | "calendar" | "payments" | "import";
 type Mode = { type: "view"; id: string } | { type: "edit"; id: string } | { type: "new" } | null;
 
 const TABS: { k: Tab; icon: string; label: string }[] = [
   { k: "home", icon: "🏠", label: "홈" },
   { k: "customers", icon: "👥", label: "고객" },
   { k: "map", icon: "🗺", label: "지도" },
+  { k: "calendar", icon: "📅", label: "달력" },
   { k: "payments", icon: "💰", label: "수납" },
   { k: "import", icon: "📥", label: "가져오기" },
 ];
@@ -146,13 +148,14 @@ export default function CustomerApp() {
           {tab === "home" && <DashboardView customers={list} payments={payments} records={records} open={open} go={go} />}
           {tab === "customers" && <CustomersView key={segKey} customers={list} balances={balances} records={records} initialSeg={seg} open={open} onNew={() => setMode({ type: "new" })} />}
           {tab === "map" && <MapView customers={list} balances={balances} open={open} reload={load} notify={setToast} />}
+          {tab === "calendar" && <CalendarView customers={list} payments={payments} records={records} open={open} reload={load} notify={setToast} />}
           {tab === "payments" && <PaymentsView customers={list} payments={payments} open={open} />}
           {tab === "import" && <ImportView reload={load} notify={setToast} />}
         </main>
       )}
 
       {/* 모바일 하단 메뉴 */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
         {TABS.map((t) => (
           <button key={t.k} onClick={() => setTab(t.k)} className={`flex flex-col items-center gap-0.5 py-2.5 text-xs font-semibold ${tab === t.k ? "text-sky-700" : "text-slate-400"}`}>
             <span className="text-xl leading-none">{t.icon}</span>{t.label}

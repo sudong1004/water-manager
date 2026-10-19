@@ -49,6 +49,7 @@ export type Payment = {
   amount: number;
   method: string; // 현금/카드/CMS/계좌이체 …
   memo: string;
+  entered?: boolean; // PC 프로그램에 입력 완료 표시
 };
 
 export const RECORD_TYPES = ["방문", "필터교체", "AS", "상담", "민원", "특이사항"] as const;
@@ -62,6 +63,7 @@ export type ServiceRecord = {
   content: string;
   nextVisit: string; // 다음 방문 예정일 (선택)
   filters?: { name: string; prev: string }[]; // 필터교체 기록과 연결된 필터 (prev = 교체 전 교환일)
+  entered?: boolean; // PC 프로그램에 입력 완료 표시
 };
 
 export type ImportLog = {
