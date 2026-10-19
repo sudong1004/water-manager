@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
 import { RECORD_TYPES } from "../lib/types";
 import { dueDate, pendingVisit, todayStr, addDays, won } from "../lib/utils";
-import { buildWorkItems, monthEnd, monthStart, TYPE_ICON, type WorkItem } from "../lib/worklog";
+import { buildWorkItems, groupWork, monthEnd, monthStart, TYPE_ICON, type Group, type WorkItem } from "../lib/worklog";
 import { api } from "../lib/api";
 
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
@@ -54,7 +54,7 @@ export default function CalendarView({
   const cells: (string | null)[] = [...Array(first).fill(null), ...Array.from({ length: days }, (_, i) => `${month}-${pad(i + 1)}`)];
   const shift = (n: number) => { const d = new Date(y, mo - 1 + n, 1); setMonth(`${d.getFullYear()}-${pad(d.getMonth() + 1)}`); };
 
-  const dayDone = doneBy.get(sel) ?? [];
+  const dayDone = useMemo(() => groupWork(doneBy.get(sel) ?? []), [doneBy, sel]);
   const dayPlan = plannedBy.get(sel) ?? [];
 
   // ── 기간 보고서
@@ -88,21 +88,24 @@ export default function CalendarView({
       ws["!cols"] = widths.map((wch) => ({ wch }));
       return ws;
     };
-    XLSX.utils.book_append_sheet(wb, sheet(range.map((i) => ({
-      날짜: i.date, 구분: i.type, 관리번호: i.customerId, 고객명: i.name, 주소: i.addr, 도로명주소: i.road,
-      내용: i.filters.length ? `${i.filters.join(", ")} 교체${i.content && !i.content.endsWith("교체") ? " / " + i.content : ""}` : i.content,
-      금액: i.amount || "", 결제방법: i.method, "PC입력": i.entered ? "완료" : "",
-    })), [11, 9, 9, 16, 34, 34, 36, 11, 10, 8]), "전체 내역");
-    const fl = range.filter((i) => i.type === "필터교체");
+    XLSX.utils.book_append_sheet(wb, sheet(groups.map((g) => ({
+      날짜: g.date, 관리번호: g.customerId, 고객명: g.name, 주소: g.addr, 도로명주소: g.road,
+      필터교체: g.filters.join(", "), 수납금액: g.paid || "", 결제방법: g.methods.join(", "), 청구금액: g.billed || "",
+      "기타(방문·AS·상담)": g.others.join(" / "), "PC입력": g.entered ? "완료" : "",
+    })), [11, 9, 16, 34, 34, 20, 11, 10, 11, 36, 8]), "고객별 정리");
+    const fl = groups.filter((g) => g.filters.length);
     if (fl.length) {
-      const rows: Record<string, string | number>[] = [];
-      fl.forEach((i) => (i.filters.length ? i.filters : [""]).forEach((f) => rows.push({ 교환일: i.date, 관리번호: i.customerId, 고객명: i.name, 필터명: f, 비고: f ? "" : i.content })));
-      XLSX.utils.book_append_sheet(wb, sheet(rows, [11, 9, 16, 12, 30]), "필터교환(PC입력용)");
+      XLSX.utils.book_append_sheet(wb, sheet(fl.map((g) => ({ 교환일: g.date, 관리번호: g.customerId, 고객명: g.name, 필터명: g.filters.join(", ") })), [11, 9, 16, 28]), "필터교환(PC입력용)");
     }
     const pay = range.filter((i) => i.type === "수납" || i.type === "청구");
     if (pay.length) {
       XLSX.utils.book_append_sheet(wb, sheet(pay.map((i) => ({ 날짜: i.date, 관리번호: i.customerId, 고객명: i.name, 구분: i.type, 금액: i.amount, 결제방법: i.method, 메모: i.content })), [11, 9, 16, 7, 11, 10, 30]), "수납(PC입력용)");
     }
+    XLSX.utils.book_append_sheet(wb, sheet(range.map((i) => ({
+      날짜: i.date, 구분: i.type, 관리번호: i.customerId, 고객명: i.name,
+      내용: i.filters.length ? `${i.filters.join(", ")} 교체${i.content && !i.content.endsWith("교체") ? " / " + i.content : ""}` : i.content,
+      금액: i.amount || "", 결제방법: i.method,
+    })), [11, 9, 9, 16, 36, 11, 10]), "상세 내역(건별)");
     XLSX.writeFile(wb, `${fileBase}.xlsx`);
     notify("엑셀 파일을 저장했습니다.");
   }
@@ -111,24 +114,21 @@ export default function CalendarView({
     if (!range.length) return notify("인쇄할 내역이 없습니다.");
     const w = window.open("", "_blank");
     if (!w) return notify("팝업이 차단되었습니다. 팝업을 허용하거나 엑셀로 저장해 주세요.");
-    const body = range.map((i) => {
-      const what = i.filters.length ? `${i.filters.join(", ")} 교체${i.content && !i.content.endsWith("교체") ? " / " + i.content : ""}` : i.content;
-      return `<tr><td>${i.date.slice(5)}</td><td>${esc(i.type)}</td><td>${esc(i.customerId)}</td><td>${esc(i.name)}</td><td>${esc(i.addr)}</td><td>${esc(what)}</td><td class="r">${i.amount ? i.amount.toLocaleString() : ""}</td></tr>`;
-    }).join("");
-    const summary = Array.from(counts.entries()).map(([k, v]) => `${k} ${v}건`).join(" · ");
+    const body = groups.map((g) => `<tr><td>${g.date.slice(5)}</td><td>${esc(g.customerId)}</td><td>${esc(g.name)}</td><td>${esc(g.addr)}</td><td>${g.lines.map((l) => esc(l.icon + " " + l.text)).join("<br>")}</td></tr>`).join("");
+    const summary = `${groups.length}곳 · ` + Array.from(counts.entries()).map(([k, v]) => `${k} ${v}건`).join(" · ");
     w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(fileBase)}</title><style>
       body{font-family:-apple-system,'Malgun Gothic',sans-serif;margin:16px;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 10px;font-size:12px;color:#555}
       table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #bbb;padding:4px 5px;text-align:left;vertical-align:top}th{background:#eef2f7}.r{text-align:right;white-space:nowrap}
       @media print{@page{size:A4 landscape;margin:10mm}}</style></head><body>
       <h1>업무 내역 · ${esc(label)}</h1><p>${esc(summary)}${sumIn ? ` · 수납 합계 ${sumIn.toLocaleString()}원` : ""} · 출력일 ${today}</p>
-      <table><thead><tr><th>날짜</th><th>구분</th><th>관리번호</th><th>고객명</th><th>주소</th><th>내용</th><th>금액</th></tr></thead><tbody>${body}</tbody></table>
+      <table><thead><tr><th>날짜</th><th>관리번호</th><th>고객명</th><th>주소</th><th>한 일</th></tr></thead><tbody>${body}</tbody></table>
       <script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>`);
     w.document.close();
   }
 
   async function copyText() {
     if (!range.length) return notify("복사할 내역이 없습니다.");
-    const lines = range.map((i) => `${i.date.slice(5)} [${i.type}] ${i.customerId} ${i.name} ${i.filters.length ? i.filters.join(",") + " 교체" : i.content}${i.amount ? " " + won(i.amount) : ""}`.trim());
+    const lines = groups.map((g) => `${g.date.slice(5)} ${g.customerId} ${g.name} - ${g.text}`);
     try { await navigator.clipboard.writeText(`업무 내역 ${label}\n` + lines.join("\n")); notify("텍스트로 복사했습니다."); } catch { notify("복사하지 못했습니다."); }
   }
 
@@ -147,11 +147,12 @@ export default function CalendarView({
     } catch (e) { notify((e as Error).message); } finally { setBusy(false); }
   }
 
+  const groups = useMemo(() => groupWork(range), [range]);
   const grouped = useMemo(() => {
-    const m = new Map<string, WorkItem[]>();
-    range.slice(0, 120).forEach((i) => m.set(i.date, [...(m.get(i.date) ?? []), i]));
+    const m = new Map<string, Group[]>();
+    groups.slice(0, 120).forEach((g) => m.set(g.date, [...(m.get(g.date) ?? []), g]));
     return Array.from(m.entries());
-  }, [range]);
+  }, [groups]);
 
   const btn = "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 active:bg-slate-50 disabled:opacity-50";
   const inp = "min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm";
@@ -197,18 +198,18 @@ export default function CalendarView({
         <h3 className="text-sm font-bold text-sky-800">{dayTitle(sel)} {sel === today && <span className="ml-1 text-xs font-medium text-slate-400">오늘</span>}</h3>
         {dayDone.length === 0 && dayPlan.length === 0 && <p className="py-6 text-center text-sm text-slate-400">이 날의 기록이 없습니다.</p>}
         {dayDone.length > 0 && (
-          <ul className="mt-2 divide-y divide-slate-100">
-            {dayDone.map((it) => (
-              <li key={it.key}>
-                <button onClick={() => open(it.customerId)} className="flex w-full items-start gap-2.5 py-2.5 text-left">
-                  <span className="text-lg leading-none">{TYPE_ICON[it.type] ?? "📝"}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-x-2 text-sm"><b>{it.name}</b><span className="text-xs text-slate-400">No.{it.customerId}</span><span className="rounded bg-slate-100 px-1.5 text-xs font-semibold text-slate-600">{it.type}</span>
-                      {it.entered && <span className="text-xs font-semibold text-emerald-600">✔ PC입력</span>}</span>
-                    <span className="mt-0.5 block break-words text-sm text-slate-600">
-                      {it.filters.length > 0 ? `${it.filters.join(", ")} 교체` : it.content || (it.amount > 0 ? "" : "-")}
-                      {it.amount > 0 && <b className={`ml-1.5 ${it.type === "청구" ? "text-red-600" : "text-emerald-700"}`}>{won(it.amount)}{it.method ? ` · ${it.method}` : ""}</b>}
-                    </span>
+          <ul className="mt-2 space-y-2">
+            {dayDone.map((g) => (
+              <li key={g.key}>
+                <button onClick={() => open(g.customerId)} className="block w-full rounded-lg bg-slate-50 p-3 text-left ring-1 ring-slate-200 active:bg-slate-100">
+                  <span className="flex flex-wrap items-baseline gap-x-2"><b className="text-base">{g.name}</b><span className="text-xs text-slate-400">No.{g.customerId}</span>
+                    {g.entered && <span className="ml-auto text-xs font-semibold text-emerald-600">✔ PC입력</span>}</span>
+                  <span className="mt-1.5 block space-y-1">
+                    {g.lines.map((l, i) => (
+                      <span key={i} className={`flex items-start gap-1.5 text-sm ${l.tone === "pay" ? "font-semibold text-emerald-700" : l.tone === "bill" ? "font-semibold text-red-600" : "text-slate-700"}`}>
+                        <span className="shrink-0">{l.icon}</span><span className="min-w-0 break-words">{l.text}</span>
+                      </span>
+                    ))}
                   </span>
                 </button>
               </li>
@@ -248,7 +249,7 @@ export default function CalendarView({
         <label className="mt-3 flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={onlyNew} onChange={(e) => setOnlyNew(e.target.checked)} className="h-4 w-4" /> PC에 아직 입력 안 한 것만</label>
 
         <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">
-          <b>{range.length}건</b>
+          <b>{groups.length}곳 · {range.length}건</b>
           <span className="ml-2 text-slate-500">{Array.from(counts.entries()).map(([k, v]) => `${k} ${v}`).join(" · ")}</span>
           {sumIn > 0 && <span className="ml-2 font-semibold text-emerald-700">수납 {won(sumIn)}</span>}
         </div>
@@ -267,18 +268,16 @@ export default function CalendarView({
               <div key={d}>
                 <div className="mb-1 text-xs font-bold text-slate-500">{dayTitle(d)}</div>
                 <ul className="divide-y divide-slate-100 rounded-lg ring-1 ring-slate-100">
-                  {list.map((it) => (
-                    <li key={it.key} className="flex items-start gap-2 px-3 py-2 text-sm">
-                      <span>{TYPE_ICON[it.type] ?? "📝"}</span>
-                      <span className="min-w-0 flex-1"><b>{it.name}</b> <span className="text-xs text-slate-400">No.{it.customerId}</span>
-                        <span className="block break-words text-slate-600">{it.filters.length ? `${it.filters.join(", ")} 교체` : it.content || it.type}{it.amount > 0 && ` · ${won(it.amount)}`}</span></span>
-                      {it.entered && <span className="shrink-0 text-xs font-semibold text-emerald-600">✔</span>}
+                  {list.map((g) => (
+                    <li key={g.key} className="px-3 py-2 text-sm">
+                      <span className="flex items-baseline gap-2"><b>{g.name}</b><span className="text-xs text-slate-400">No.{g.customerId}</span>{g.entered && <span className="ml-auto text-xs font-semibold text-emerald-600">✔</span>}</span>
+                      <span className="mt-0.5 block space-y-0.5">{g.lines.map((l, i) => <span key={i} className="flex gap-1.5 text-slate-600"><span>{l.icon}</span><span className="min-w-0 break-words">{l.text}</span></span>)}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             ))}
-            {range.length > 120 && <p className="text-center text-xs text-slate-400">미리보기는 120건까지 · 엑셀·인쇄에는 전체 {range.length}건이 포함됩니다.</p>}
+            {groups.length > 120 && <p className="text-center text-xs text-slate-400">미리보기는 120곳까지 · 엑셀·인쇄에는 전체 {groups.length}곳이 포함됩니다.</p>}
           </div>
         )}
       </section>
