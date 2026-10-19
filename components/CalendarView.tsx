@@ -175,7 +175,7 @@ export default function CalendarView({
         <div className="grid grid-cols-7 gap-0.5">
           {cells.map((d, i) => {
             if (!d) return <div key={i} />;
-            const done = doneBy.get(d)?.length ?? 0;
+            const done = new Set((doneBy.get(d) ?? []).map((i) => i.customerId)).size; // 건수가 아니라 방문한 집 수
             const plan = plannedBy.get(d)?.length ?? 0;
             const isSel = d === sel;
             return (
@@ -190,7 +190,7 @@ export default function CalendarView({
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-slate-400"><span className="rounded-full bg-sky-100 px-1.5 font-bold text-sky-700">N</span> 한 일 · <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" /> 예정(필터 교환·방문)</p>
+        <p className="mt-2 text-xs text-slate-400"><span className="rounded-full bg-sky-100 px-1.5 font-bold text-sky-700">N</span> 한 일(고객 수) · <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" /> 예정(필터 교환·방문)</p>
       </section>
 
       {/* 선택한 날 */}
