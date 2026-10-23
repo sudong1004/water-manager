@@ -97,8 +97,8 @@ export default function CustomerApp() {
       setRecords((l) => [record, ...l]);
       setToast(`${record.filters?.map((f) => f.name).join(", ")} 교환 완료 (${date}) · 이력에 기록됨`);
     } catch (e) {
-      setToast((e as Error).message);
-      await load().catch(() => {}); // 서버 상태와 다시 맞춤
+      load().catch(() => {}); // 서버 상태와 다시 맞춤
+      throw e; // 교환 입력창에서 오류를 바로 보여 주도록 다시 던짐
     }
   }
   /** 이력(필터교체)이 바뀌면 필터의 최근 교환일을 이력 기준으로 다시 맞춤 (화면 상태로 계산, 재조회 없음) */

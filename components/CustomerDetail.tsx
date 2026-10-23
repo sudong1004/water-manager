@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
 import { balanceOf, cycleLabel, daysLeft, dueDate, dueLabel, dueTone, fullAddr, roadFull, pendingVisit, regionOf, todayStr, won } from "../lib/utils";
 import type { VisitAct } from "./RecordsTab";
@@ -28,10 +28,14 @@ export default function CustomerDetail({
   const [tab, setTab] = useState<"info" | "pay" | "rec">("info");
   const [rep, setRep] = useState<{ target: number[]; date: string } | null>(null);
   const [repBusy, setRepBusy] = useState(false);
+  const [repErr, setRepErr] = useState("");
+  const repBox = useRef<HTMLDivElement>(null);
+  // 교환 입력창이 열리면 화면 안으로 스크롤 (목록 아래쪽 버튼을 눌렀을 때 창이 안 보이는 문제 방지)
+  useEffect(() => { if (rep) repBox.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [rep?.target.join(",")]);
   async function confirmRep() {
     if (!rep || repBusy) return;
-    setRepBusy(true);
-    try { await onReplace(rep.target, rep.date); setRep(null); } catch (e) { notify((e as Error).message); } finally { setRepBusy(false); }
+    setRepBusy(true); setRepErr("");
+    try { await onReplace(rep.target, rep.date); setRep(null); } catch (e) { setRepErr((e as Error).message); } finally { setRepBusy(false); }
   }
   const bal = balanceOf(payments);
   const visit = pendingVisit(records);
@@ -107,18 +111,19 @@ export default function CustomerDetail({
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-sky-800">필터 교환</h3>
             {c.filters.length > 0 && (
-              <button onClick={() => setRep({ target: c.filters.map((_, i) => i), date: todayStr() })} className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 active:bg-sky-100">전체 교환</button>
+              <button onClick={() => { setRepErr(""); setRep({ target: c.filters.map((_, i) => i), date: todayStr() }); }} className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 active:bg-sky-100">전체 교환</button>
             )}
           </div>
           {c.filters.length === 0 && <p className="text-sm text-slate-400">등록된 필터가 없습니다.</p>}
           {rep && (
-            <div className="mb-3 space-y-2 rounded-xl bg-sky-50 p-3 ring-1 ring-sky-200">
+            <div ref={repBox} className="mb-3 space-y-2 rounded-xl bg-sky-50 p-3 ring-1 ring-sky-200">
               <p className="text-sm font-semibold text-sky-800">{rep.target.map((i) => c.filters[i]?.name).filter(Boolean).join(", ")} 교환</p>
               <label className="block"><span className="mb-1 block text-xs text-slate-500">교환일</span>
                 <input type="date" max={todayStr()} value={rep.date} onChange={(e) => setRep({ ...rep, date: e.target.value })}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200" /></label>
+              {repErr && <p className="rounded-lg bg-red-50 p-2.5 text-sm font-medium text-red-700">⚠ {repErr}</p>}
               <div className="flex gap-2">
-                <button onClick={() => setRep(null)} disabled={repBusy} className="flex-1 rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-600">취소</button>
+                <button onClick={() => { setRep(null); setRepErr(""); }} disabled={repBusy} className="flex-1 rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-600">취소</button>
                 <button onClick={confirmRep} disabled={repBusy || !rep.date} className="flex-[2] rounded-xl bg-sky-700 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{repBusy ? "저장 중…" : "교환 완료"}</button>
               </div>
             </div>
@@ -138,7 +143,7 @@ export default function CustomerDetail({
                       주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange} · 예정 {d}
                     </div>
                   </div>
-                  <button onClick={() => setRep({ target: [i], date: todayStr() })} disabled={f.lastChange >= todayStr() || repBusy}
+                  <button onClick={() => { setRepErr(""); setRep({ target: [i], date: todayStr() }); }} disabled={f.lastChange >= todayStr() || repBusy}
                     className="shrink-0 rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 active:bg-sky-50 disabled:opacity-40">교환 완료</button>
                 </li>
               );

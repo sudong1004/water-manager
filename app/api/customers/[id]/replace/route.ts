@@ -27,7 +27,9 @@ export async function POST(req: Request, { params }: Ctx) {
     };
     // 이력을 먼저 저장 → 실패해도 교환일은 바뀌지 않아 다시 시도할 수 있음
     await records.insert(record);
-    try { await customers.update(id, next); } catch (e) { await records.remove(record.id); throw e; }
+    try {
+      if (!(await customers.update(id, next))) throw new Error("고객 정보를 저장하지 못했습니다. 다시 시도해 주세요.");
+    } catch (e) { await records.remove(record.id); throw e; }
     return NextResponse.json({ customer: next, record });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
