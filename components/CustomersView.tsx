@@ -22,6 +22,7 @@ export default function CustomersView({
   const [dong, setDong] = useState("");
   const [debtOnly, setDebtOnly] = useState(false);
   const [sort, setSort] = useState<Sort>("due");
+  const [menu, setMenu] = useState(false);
 
   const rows = useMemo(() => customers.map((c) => ({ c, due: nextDue(c), rg: regionOf(c) })), [customers]);
   const counts = useMemo(() => ({
@@ -110,9 +111,18 @@ export default function CustomersView({
         <AddrToggle />
         <button onClick={() => setDebtOnly(!debtOnly)} className={`rounded-lg border px-3 py-2 text-sm font-medium ${debtOnly ? "border-red-300 bg-red-50 text-red-700" : "border-slate-300 bg-white text-slate-600"}`}>미수금만</button>
         <span className="ml-auto flex items-center gap-2 text-sm text-slate-500">{shown.length}명
-          <button onClick={download} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700">CSV</button>
-          <button onClick={onImport} className="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-semibold text-sky-800 active:bg-sky-100">📥 가져오기</button>
-          <button onClick={onNew} className="rounded-lg bg-sky-700 px-2.5 py-1.5 text-xs font-semibold text-white active:bg-sky-800">+ 신규등록</button>
+          <span className="relative">
+            <button onClick={() => setMenu(!menu)} aria-label="더보기" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-600 active:bg-slate-50">⋯</button>
+            {menu && (
+              <>
+                <button aria-label="메뉴 닫기" className="fixed inset-0 z-10 cursor-default" onClick={() => setMenu(false)} />
+                <div className="absolute right-0 z-20 mt-1 w-40 overflow-hidden rounded-xl bg-white text-sm shadow-lg ring-1 ring-slate-200">
+                  <button onClick={() => { setMenu(false); download(); }} className="block w-full px-4 py-3 text-left text-slate-700 active:bg-slate-100">📄 CSV 내려받기</button>
+                  <button onClick={() => { setMenu(false); onImport(); }} className="block w-full border-t border-slate-100 px-4 py-3 text-left text-slate-700 active:bg-slate-100">📥 가져오기 · 백업</button>
+                </div>
+              </>
+            )}
+          </span>
         </span>
       </div>
 
@@ -133,14 +143,14 @@ export default function CustomersView({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="truncate text-base font-semibold">{c.name}{c.contactPerson && <span className="ml-1.5 text-sm font-normal text-slate-500">({c.contactPerson})</span>}</div>
-                      <div className="mt-0.5 text-xs text-slate-400">No.{c.id} · {c.mgmtType || "-"} · 등록 {c.regDate}</div>
+                      <div className="mt-0.5 text-[13px] text-slate-400">No.{c.id} · {c.mgmtType || "-"} · 등록 {c.regDate}</div>
                     </div>
                     {due && <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${dueTone(due.left)}`}>{dueLabel(due.left)}</span>}
                   </div>
                   <div className="mt-2 line-clamp-2 text-sm text-slate-600"><AddrLines c={c} /></div>
                   <div className="mt-2 flex items-center justify-between text-sm">
                     <span className="font-medium text-sky-700">{firstPhone(c) || "연락처 없음"}</span>
-                    {due && <span className="text-xs text-slate-500">{due.filter.name} · {due.date}</span>}
+                    {due && <span className="text-[13px] text-slate-500">{due.filter.name} · {due.date}</span>}
                   </div>
                   {(bal > 0 || visit) && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -155,6 +165,10 @@ export default function CustomersView({
           })}
         </ul>
       )}
+      <button onClick={onNew} aria-label="신규 고객 등록"
+        className="fixed bottom-[6.5rem] right-4 z-10 flex h-14 items-center gap-1.5 rounded-full bg-sky-700 px-5 text-base font-semibold text-white shadow-lg shadow-sky-900/30 active:bg-sky-800 sm:bottom-8 sm:right-8">
+        <span className="text-xl leading-none">＋</span> 신규
+      </button>
     </div>
   );
 }

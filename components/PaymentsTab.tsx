@@ -81,9 +81,9 @@ export default function PaymentsTab({
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className={`font-bold ${p.kind === "수납" ? "text-emerald-600" : "text-amber-700"}`}>{p.kind === "수납" ? "+" : ""}{won(p.amount)}</span>
-                  <span className="text-xs text-slate-500">{p.kind} · {p.method}</span>
+                  <span className="text-[13px] text-slate-500">{p.kind} · {p.method}</span>
                 </div>
-                <div className="truncate text-xs text-slate-400">{p.date}{p.memo && ` · ${p.memo}`}</div>
+                <div className="truncate text-[13px] text-slate-400">{p.date}{p.memo && ` · ${p.memo}`}</div>
               </div>
               <button onClick={() => setForm(p)} className="rounded-lg px-2 py-1.5 text-sm text-sky-700 active:bg-sky-50">수정</button>
               <button onClick={() => del(p)} className="rounded-lg px-2 py-1.5 text-sm text-red-600 active:bg-red-50">삭제</button>

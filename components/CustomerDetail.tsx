@@ -159,7 +159,7 @@ export default function CustomerDetail({
                       <span className="font-medium">{f.name}</span>
                       {left !== null && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${dueTone(left)}`}>{dueLabel(left)}</span>}
                     </div>
-                    <div className="mt-0.5 text-xs text-slate-500">
+                    <div className="mt-0.5 text-[13px] text-slate-500">
                       주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange || "-"} · 예정 {d || "-"}{f.nextDate && <b className="ml-1 text-violet-600">(지정)</b>}
                     </div>
                   </div>

@@ -101,7 +101,7 @@ export default function RecordsTab({
             <li key={r.id} className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
               <div className="flex items-center gap-2 text-sm">
                 <span>{ICON[r.type]}</span><span className="font-semibold">{r.type}</span>
-                <span className="text-xs text-slate-400">{r.date}</span>
+                <span className="text-[13px] text-slate-400">{r.date}</span>
                 <span className="ml-auto flex">
                   <button onClick={() => setForm(r)} className="rounded px-2 py-1 text-sm text-sky-700">수정</button>
                   <button onClick={() => del(r)} className="rounded px-2 py-1 text-sm text-red-600">삭제</button>
