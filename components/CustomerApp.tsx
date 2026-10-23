@@ -88,15 +88,13 @@ export default function CustomerApp() {
       await load().catch(() => {}); // 서버 상태와 다시 맞춤
     }
   }
-  /** 이력(필터교체)을 추가·수정·삭제했을 때 필터의 최근 교환일을 이력 기준으로 다시 맞춤 */
-  async function syncFilters(customerId: string, old?: ServiceRecord, savedId?: string) {
-    const [cs, rs]: [Customer[], ServiceRecord[]] = await Promise.all([api("/api/customers"), api("/api/records")]);
-    const c = cs.find((x) => x.id === customerId);
+  /** 이력(필터교체)이 바뀌면 필터의 최근 교환일을 이력 기준으로 다시 맞춤 (화면 상태로 계산, 재조회 없음) */
+  async function syncFilters(customerId: string, rs: ServiceRecord[], old?: ServiceRecord, saved?: ServiceRecord) {
+    const c = list.find((x) => x.id === customerId);
     if (!c) return;
     const mine = rs.filter((r) => r.customerId === customerId && r.type === "필터교체");
     const namesOf = (r?: ServiceRecord) =>
       !r || r.type !== "필터교체" ? [] : r.filters?.length ? r.filters.map((f) => f.name) : c.filters.filter((f) => r.content?.includes(f.name)).map((f) => f.name);
-    const saved = savedId ? rs.find((r) => r.id === savedId) : undefined;
     const affected = new Set([...namesOf(old), ...namesOf(saved)]);
     let changed = false;
     const filters = c.filters.map((f) => {
@@ -108,10 +106,22 @@ export default function CustomerApp() {
       changed = true;
       return { ...f, lastChange: last };
     });
-    if (changed) {
-      await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...c, filters }) });
+    if (!changed) return;
+    try {
+      const next: Customer = await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...c, filters }) });
+      setCustomers((l) => (l ?? []).map((x) => (x.id === c.id ? next : x)));
       setToast("이력 기준으로 필터 교환일도 함께 수정했습니다.");
-    }
+    } catch (e) { setToast(`이력은 저장됐지만 필터 교환일 수정에 실패했습니다: ${(e as Error).message}`); }
+  }
+  async function recordSaved(saved: ServiceRecord, old?: ServiceRecord) {
+    const rs = records.some((r) => r.id === saved.id) ? records.map((r) => (r.id === saved.id ? saved : r)) : [saved, ...records];
+    setRecords(rs);
+    await syncFilters(saved.customerId, rs, old, saved);
+  }
+  async function recordRemoved(old: ServiceRecord) {
+    const rs = records.filter((r) => r.id !== old.id);
+    setRecords(rs);
+    await syncFilters(old.customerId, rs, old);
   }
   async function remove(c: Customer) {
     if (!confirm(`"${c.name}" 고객을 삭제할까요?\n수납·이력 기록도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
@@ -177,7 +187,7 @@ export default function CustomerApp() {
                 <CustomerDetail key={current.id} c={current}
                   payments={payments.filter((p) => p.customerId === current.id)}
                   records={records.filter((r) => r.customerId === current.id)}
-                  reload={load} notify={setToast} onRecordChange={syncFilters}
+                  notify={setToast} onRecordSaved={recordSaved} onRecordRemoved={recordRemoved}
                   onPaymentSaved={(p) => setPayments((l) => (l.some((x) => x.id === p.id) ? l.map((x) => (x.id === p.id ? p : x)) : [p, ...l]))}
                   onPaymentRemoved={(id) => setPayments((l) => l.filter((x) => x.id !== id))}
                   onEdit={() => setMode({ type: "edit", id: current.id })}

@@ -8,10 +8,11 @@ const inp = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focu
 const ICON: Record<string, string> = { 방문: "🚗", 필터교체: "🔧", AS: "🛠", 상담: "💬", 민원: "⚠️", 특이사항: "📌" };
 
 export default function RecordsTab({
-  customerId, records, reload, notify, onChange,
+  customerId, records, notify, onSaved, onRemoved,
 }: {
-  customerId: string; records: ServiceRecord[]; reload: () => Promise<void>; notify: (m: string) => void;
-  onChange: (customerId: string, old?: ServiceRecord, savedId?: string) => Promise<void>;
+  customerId: string; records: ServiceRecord[]; notify: (m: string) => void;
+  onSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>;
+  onRemoved: (old: ServiceRecord) => Promise<void>;
 }) {
   const [form, setForm] = useState<Partial<ServiceRecord> | null>(null);
   const [saving, setSaving] = useState(false);
@@ -29,16 +30,16 @@ export default function RecordsTab({
     setSaving(true);
     try {
       const old = form.id ? records.find((r) => r.id === form.id) : undefined;
-      let savedId = form.id;
-      if (form.id) await api(`/api/records/${form.id}`, { method: "PUT", body: JSON.stringify(form) });
-      else savedId = (await api("/api/records", { method: "POST", body: JSON.stringify({ ...form, customerId }) })).id;
-      await onChange(customerId, old, savedId);
-      await reload(); notify("기록되었습니다."); setForm(null);
+      const saved: ServiceRecord = form.id
+        ? await api(`/api/records/${form.id}`, { method: "PUT", body: JSON.stringify(form) })
+        : await api("/api/records", { method: "POST", body: JSON.stringify({ ...form, customerId }) });
+      await onSaved(saved, old);
+      notify("기록되었습니다."); setForm(null);
     } catch (err) { notify((err as Error).message); } finally { setSaving(false); }
   }
   async function del(r: ServiceRecord) {
     if (!confirm(r.type === "필터교체" ? "이 기록을 삭제할까요?\n필터 교환일도 이전 기록 기준으로 되돌아갑니다." : "이 기록을 삭제할까요?")) return;
-    await api(`/api/records/${r.id}`, { method: "DELETE" }); await onChange(customerId, r); await reload(); notify("삭제되었습니다.");
+    try { await api(`/api/records/${r.id}`, { method: "DELETE" }); await onRemoved(r); notify("삭제되었습니다."); } catch (err) { notify((err as Error).message); }
   }
 
   return (
