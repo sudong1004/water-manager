@@ -51,6 +51,11 @@ export default function CustomerApp() {
     const [c, p, r] = await Promise.all([api("/api/customers"), api("/api/payments"), api("/api/records")]);
     setCustomers(c); setPayments(p); setRecords(r); setLoadErr("");
   }, []);
+  const [refreshing, setRefreshing] = useState(false);
+  async function refresh() {
+    setRefreshing(true);
+    try { await load(); setToast("최신 데이터로 불러왔습니다."); } catch (e) { setToast((e as Error).message); } finally { setRefreshing(false); }
+  }
   const firstLoad = useCallback(() => { setLoadErr(""); load().catch((e) => setLoadErr(e.message)); }, [load]);
   useEffect(() => { firstLoad(); }, [firstLoad]);
   // 앱으로 돌아오면(다른 기기에서 바꾼 내용 반영) 조용히 다시 불러옴
@@ -178,7 +183,6 @@ export default function CustomerApp() {
     setToast("메모에 추가했습니다.");
   }
   async function remove(c: Customer) {
-    if (!confirm(`"${c.name}" 고객을 삭제할까요?\n수납·이력 기록도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
     await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "DELETE" });
     setToast("삭제되었습니다."); setMode(null); await load();
   }
@@ -198,6 +202,7 @@ export default function CustomerApp() {
             ))}
           </nav>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <button onClick={refresh} disabled={refreshing} title="새로고침" aria-label="새로고침" className="rounded-lg border border-slate-300 px-2.5 py-2 text-sm text-slate-600 active:bg-slate-50 disabled:opacity-50"><span className={refreshing ? "inline-block animate-spin" : ""}>🔄</span></button>
             <button onClick={() => setTab("check")} title="데이터 점검" className={`whitespace-nowrap rounded-lg border px-2.5 py-2 text-sm font-medium active:bg-slate-50 ${tab === "check" ? "border-sky-500 bg-sky-50 text-sky-700" : "border-slate-300 text-slate-600"}`}>🔍 점검</button>
             {USE_SUPABASE && (
               <button onClick={logout} title={email} className="whitespace-nowrap rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-medium text-slate-600 active:bg-slate-50">로그아웃</button>
@@ -215,7 +220,7 @@ export default function CustomerApp() {
         ) : <p className="py-24 text-center text-slate-400">불러오는 중…</p>
       ) : (
         <main>
-          {tab === "home" && <DashboardView customers={list} payments={payments} records={records} open={open} go={go} onVisit={visitAction} />}
+          {tab === "home" && <DashboardView customers={list} payments={payments} records={records} open={open} go={go} onVisit={visitAction} onBackup={() => setTab("import")} />}
           {tab === "customers" && <CustomersView key={segKey} customers={list} balances={balances} records={records} initialSeg={seg} open={open} onImport={() => setTab("import")} onNew={() => setMode({ type: "new" })} />}
           {tab === "map" && <MapView customers={list} balances={balances} open={open} reload={load} notify={setToast} />}
           {tab === "calendar" && <CalendarView customers={list} payments={payments} records={records} open={open} reload={load} notify={setToast} />}
@@ -243,7 +248,7 @@ export default function CustomerApp() {
             </div>
             <div className="min-h-0 flex-1">
               {mode.type === "new" && <CustomerForm key="new" isNew initial={emptyCustomer()} onSave={save} onCancel={() => setMode(null)} />}
-              {mode.type === "edit" && current && <CustomerForm key={current.id} isNew={false} initial={current} onSave={save} onCancel={() => setMode({ type: "view", id: current.id })} />}
+              {mode.type === "edit" && current && <CustomerForm key={current.id} isNew={false} initial={current} onSave={save} onDelete={() => remove(current)} onCancel={() => setMode({ type: "view", id: current.id })} />}
               {mode.type === "view" && current && (
                 <CustomerDetail key={current.id} c={current}
                   payments={payments.filter((p) => p.customerId === current.id)}
@@ -252,7 +257,6 @@ export default function CustomerApp() {
                   onPaymentSaved={(p) => setPayments((l) => (l.some((x) => x.id === p.id) ? l.map((x) => (x.id === p.id ? p : x)) : [p, ...l]))}
                   onPaymentRemoved={(id) => setPayments((l) => l.filter((x) => x.id !== id))}
                   onEdit={() => setMode({ type: "edit", id: current.id })}
-                  onDelete={() => remove(current)}
                   onReplace={(idx, date) => replaceFilters(current, idx, date)} />
               )}
             </div>

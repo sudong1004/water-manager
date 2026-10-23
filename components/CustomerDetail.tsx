@@ -19,9 +19,9 @@ function Row({ label, value }: { label: string; value?: string | number }) {
 }
 
 export default function CustomerDetail({
-  c, payments, records, onEdit, onDelete, onReplace, onMemo, onVisit, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
+  c, payments, records, onEdit, onReplace, onMemo, onVisit, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
 }: {
-  c: Customer; payments: Payment[]; records: ServiceRecord[]; onEdit: () => void; onDelete: () => void;
+  c: Customer; payments: Payment[]; records: ServiceRecord[]; onEdit: () => void;
   onReplace: (idx: number[], date: string) => Promise<void>; onMemo: (text: string) => Promise<void>; onVisit: VisitAct; onRecordSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>; onRecordRemoved: (old: ServiceRecord) => Promise<void>;
   onPaymentSaved: (p: Payment) => void; onPaymentRemoved: (id: string) => void; notify: (m: string) => void;
 }) {
@@ -206,8 +206,7 @@ export default function CustomerDetail({
         )}
       </div>
       <div className="flex gap-3 border-t border-slate-200 bg-white px-4 pt-3 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+0.5rem))]">
-        <button onClick={onDelete} className="flex-1 rounded-2xl border border-red-200 py-3.5 font-medium text-red-600 active:bg-red-50">삭제</button>
-        <button onClick={onEdit} className="flex-[2] rounded-2xl bg-sky-700 py-3.5 font-semibold text-white active:bg-sky-800">수정</button>
+        <button onClick={onEdit} className="flex-1 rounded-2xl bg-sky-700 py-3.5 font-semibold text-white active:bg-sky-800">수정</button>
       </div>
       </>)}
     </div>

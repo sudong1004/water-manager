@@ -1,6 +1,6 @@
 "use client";
 import type { VisitAct } from "./RecordsTab";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
 import { buildWorkItems, groupWork, TYPE_ICON } from "../lib/worklog";
 import { addDays, todayStr, balanceOf, daysLeft, dueLabel, dueTone, monthOf, nextDue, pendingVisit, regionOf, sumBy, thisMonth, won } from "../lib/utils";
@@ -114,12 +114,16 @@ function ActivityFeed({ customers, payments, records, open }: { customers: Custo
 }
 
 export default function DashboardView({
-  customers, payments, records, open, go, onVisit,
+  customers, payments, records, open, go, onVisit, onBackup,
 }: {
   customers: Customer[]; payments: Payment[]; records: ServiceRecord[];
-  open: (id: string) => void; go: (t: "customers" | "payments", f?: string) => void; onVisit: VisitAct;
+  open: (id: string) => void; go: (t: "customers" | "payments", f?: string) => void; onVisit: VisitAct; onBackup: () => void;
 }) {
   const month = thisMonth();
+  const [backupAge, setBackupAge] = useState<number | null | undefined>(undefined); // undefined=확인 전, null=기록 없음
+  useEffect(() => {
+    try { const d = localStorage.getItem("lastBackup"); setBackupAge(d ? Math.round((Date.now() - new Date(d).getTime()) / 86400000) : null); } catch { setBackupAge(undefined); }
+  }, []);
   const byCust = (id: string) => customers.find((c) => c.id === id);
 
   const due = customers.map((c) => ({ c, d: nextDue(c) })).filter((x) => x.d) as { c: Customer; d: NonNullable<ReturnType<typeof nextDue>> }[];
@@ -153,6 +157,12 @@ export default function DashboardView({
 
   return (
     <div className="space-y-4 px-4 pt-4">
+      {backupAge !== undefined && (backupAge === null || backupAge > 14) && (
+        <button onClick={onBackup} className="flex w-full items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-left text-sm text-amber-900 ring-1 ring-amber-200 active:bg-amber-100">
+          <span>💾 {backupAge === null ? "이 기기에서 백업한 기록이 없습니다." : `마지막 백업이 ${backupAge}일 전입니다.`} 백업을 받아 두세요.</span>
+          <span className="shrink-0 font-semibold">백업하기 ›</span>
+        </button>
+      )}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <Stat label="전체 고객" value={customers.length} onClick={() => go("customers")} />
         <Stat label="이번 달 신규" value={newThisMonth} tone="text-sky-700" />

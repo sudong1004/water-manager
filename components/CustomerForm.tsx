@@ -24,11 +24,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function CustomerForm({
-  initial, isNew, onSave, onCancel,
-}: { initial: Customer; isNew: boolean; onSave: (c: Customer) => Promise<void>; onCancel: () => void }) {
+  initial, isNew, onSave, onCancel, onDelete,
+}: { initial: Customer; isNew: boolean; onSave: (c: Customer) => Promise<void>; onCancel: () => void; onDelete?: () => Promise<void> }) {
   const [c, setC] = useState<Customer>(initial);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [delName, setDelName] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const set = <K extends keyof Customer>(k: K, v: Customer[K]) => setC((p) => ({ ...p, [k]: v }));
   const text = (k: keyof Customer, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <input className={inputCls} value={String(c[k] ?? "")} onChange={(e) => set(k, e.target.value as never)} {...props} />
@@ -125,6 +127,17 @@ export default function CustomerForm({
           <Field label="참고내용 2"><textarea className={inputCls} rows={2} value={c.ref2} onChange={(e) => set("ref2", e.target.value)} /></Field>
           <Field label="메모사항" className="col-span-2"><textarea className={inputCls} rows={3} value={c.memo} onChange={(e) => set("memo", e.target.value)} /></Field>
         </Section>
+
+        {!isNew && onDelete && (
+          <section className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+            <h3 className="text-sm font-semibold text-red-700">고객 삭제</h3>
+            <p className="mt-1 text-xs text-slate-500">수납·이력 기록도 함께 삭제되며 되돌릴 수 없습니다. 삭제 전에 📥 가져오기 화면에서 백업을 받아 두세요. 삭제하려면 고객명 <b>{initial.name}</b> 을(를) 아래에 똑같이 입력하세요.</p>
+            <input className={`${inputCls} mt-2`} value={delName} onChange={(e) => setDelName(e.target.value)} placeholder="고객명 입력" />
+            <button type="button" disabled={deleting || delName.trim() !== initial.name.trim()}
+              onClick={async () => { setDeleting(true); setErr(""); try { await onDelete(); } catch (e) { setErr((e as Error).message); setDeleting(false); } }}
+              className="mt-2 w-full rounded-xl bg-red-600 py-3 font-semibold text-white disabled:opacity-40 active:bg-red-700">{deleting ? "삭제 중…" : "이 고객 삭제"}</button>
+          </section>
+        )}
       </div>
 
       <div className="border-t border-slate-200 bg-white px-4 pt-3 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+0.5rem))]">
