@@ -157,10 +157,10 @@ export default function CustomerDetail({
                     </div>
                   </div>
                   {f.lastChange > todayStr() ? (
-                    <button onClick={onEdit} className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-500 active:bg-slate-100">교환일 수정</button>
+                    <button onClick={onEdit} className="shrink-0 px-2 py-2 text-sm text-slate-400 underline active:text-slate-600">수정</button>
                   ) : f.lastChange === todayStr() ? (
                     <button onClick={() => { setTab("rec"); notify("오늘 교환 처리된 필터입니다. 날짜가 틀렸다면 '필터교체' 기록의 [수정]에서 날짜를 바꾸세요."); }}
-                      className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-500 active:bg-slate-100">교환됨 · 수정</button>
+                      className="shrink-0 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200 active:bg-emerald-100">✓ 교환완료</button>
                   ) : (
                     <button onClick={() => openRep([i])} disabled={repBusy}
                       className="shrink-0 rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 active:bg-sky-50 disabled:opacity-40">교환 완료</button>
