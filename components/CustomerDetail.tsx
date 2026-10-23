@@ -205,9 +205,9 @@ export default function CustomerDetail({
           </section>
         )}
       </div>
-      <div className="flex gap-2 border-t border-slate-200 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <button onClick={onDelete} className="flex-1 rounded-xl border border-red-200 py-3 font-medium text-red-600 active:bg-red-50">삭제</button>
-        <button onClick={onEdit} className="flex-[2] rounded-xl bg-sky-700 py-3 font-semibold text-white active:bg-sky-800">수정</button>
+      <div className="flex gap-3 border-t border-slate-200 bg-white px-4 pt-3 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+0.5rem))]">
+        <button onClick={onDelete} className="flex-1 rounded-2xl border border-red-200 py-3.5 font-medium text-red-600 active:bg-red-50">삭제</button>
+        <button onClick={onEdit} className="flex-[2] rounded-2xl bg-sky-700 py-3.5 font-semibold text-white active:bg-sky-800">수정</button>
       </div>
       </>)}
     </div>

@@ -127,11 +127,11 @@ export default function CustomerForm({
         </Section>
       </div>
 
-      <div className="border-t border-slate-200 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="border-t border-slate-200 bg-white px-4 pt-3 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+0.5rem))]">
         {err && <p className="mb-2 text-sm text-red-600">{err}</p>}
-        <div className="flex gap-2">
-          <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-slate-300 py-3 font-medium text-slate-700 active:bg-slate-50">취소</button>
-          <button type="submit" disabled={saving} className="flex-[2] rounded-xl bg-sky-700 py-3 font-semibold text-white active:bg-sky-800 disabled:opacity-60">
+        <div className="flex gap-3">
+          <button type="button" onClick={onCancel} className="flex-1 rounded-2xl border border-slate-300 py-3.5 font-medium text-slate-700 active:bg-slate-50">취소</button>
+          <button type="submit" disabled={saving} className="flex-[2] rounded-2xl bg-sky-700 py-3.5 font-semibold text-white active:bg-sky-800 disabled:opacity-60">
             {saving ? "저장 중…" : isNew ? "등록하기" : "저장하기"}
           </button>
         </div>

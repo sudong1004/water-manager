@@ -92,8 +92,8 @@ export default function PaymentsTab({
         </ul>
       </div>
       {!form && (
-        <div className="border-t border-slate-200 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <button onClick={() => setForm(blank())} className="w-full rounded-xl bg-sky-700 py-3 font-semibold text-white active:bg-sky-800">+ 수납 / 청구 기록</button>
+        <div className="border-t border-slate-200 bg-white px-4 pt-3 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+0.5rem))]">
+          <button onClick={() => setForm(blank())} className="w-full rounded-2xl bg-sky-700 py-3.5 font-semibold text-white active:bg-sky-800">+ 수납 / 청구 기록</button>
         </div>
       )}
     </div>

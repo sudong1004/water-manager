@@ -145,6 +145,11 @@ export default function CustomerApp() {
     const rs = records.some((r) => r.id === saved.id) ? records.map((r) => (r.id === saved.id ? saved : r)) : [saved, ...records];
     setRecords(rs);
     await syncFilters(saved.customerId, rs, old, saved);
+    // 새 특이사항 이력은 고객 메모(메모사항)에도 함께 남긴다
+    const cust = list.find((x) => x.id === saved.customerId);
+    if (!old && saved.type === "특이사항" && saved.content?.trim() && cust) {
+      await addMemo(cust, saved.content, saved.date).catch((e) => setToast(`이력은 저장됐지만 메모에 추가하지 못했습니다: ${(e as Error).message}`));
+    }
   }
   async function recordRemoved(old: ServiceRecord) {
     const rs = records.filter((r) => r.id !== old.id);
@@ -165,8 +170,8 @@ export default function CustomerApp() {
     } catch (e) { setToast((e as Error).message); await load().catch(() => {}); } finally { setVisitBusy(false); }
   }
   /** 특이사항 메모: 메모사항 맨 아래에 "[MM-DD] 내용" 한 줄 추가 */
-  async function addMemo(c: Customer, text: string) {
-    const line = `[${todayStr().slice(5)}] ${text.trim()}`;
+  async function addMemo(c: Customer, text: string, date = todayStr()) {
+    const line = `[${date.slice(5)}] ${text.trim()}`;
     const memo = c.memo?.trim() ? `${c.memo.trimEnd()}\n${line}` : line;
     const next: Customer = await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...c, memo }) });
     setCustomers((l) => (l ?? []).map((x) => (x.id === next.id ? next : x)));
@@ -215,7 +220,7 @@ export default function CustomerApp() {
           {tab === "map" && <MapView customers={list} balances={balances} open={open} reload={load} notify={setToast} />}
           {tab === "calendar" && <CalendarView customers={list} payments={payments} records={records} open={open} reload={load} notify={setToast} />}
           {tab === "payments" && <PaymentsView customers={list} payments={payments} open={open} />}
-          {tab === "check" && <CheckView customers={list} records={records} open={open} />}
+          {tab === "check" && <CheckView customers={list} records={records} open={open} reload={load} notify={setToast} />}
           {tab === "import" && <ImportView reload={load} notify={setToast} />}
         </main>
       )}

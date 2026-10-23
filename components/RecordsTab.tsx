@@ -66,7 +66,7 @@ export default function RecordsTab({
         {form && (
           <form onSubmit={save} className="space-y-3 rounded-xl bg-white p-4 shadow-sm ring-2 ring-sky-300">
             <div className="flex flex-wrap gap-1.5">
-              {RECORD_TYPES.filter((t) => (t !== "방문" && t !== "특이사항") || form.type === t).map((t) => ( // 새 이력에서는 "방문"·"특이사항"을 고르지 않음 (특이사항은 정보 탭 메모로). 기존 이력 수정 시에만 표시
+              {RECORD_TYPES.filter((t) => t !== "방문" || form.type === "방문").map((t) => ( // 새 이력에서는 "방문"을 고르지 않음 (기존 방문 이력 수정 시에만 표시)
                 <button type="button" key={t} onClick={() => setForm({ ...form, type: t })}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium ${form.type === t ? "bg-sky-700 text-white" : "bg-slate-100 text-slate-600"}`}>{ICON[t]} {t}</button>
               ))}
@@ -78,7 +78,7 @@ export default function RecordsTab({
                 <label className="block"><span className="mb-1 block text-xs text-slate-500">방문 예정일{form.type === "방문예약" ? "" : " (선택)"}</span>
                   <input className={inp} type="date" value={form.nextVisit ?? ""} onChange={(e) => setForm({ ...form, nextVisit: e.target.value })} /></label>
               )}
-              <label className="block min-[400px]:col-span-2"><span className="mb-1 block text-xs text-slate-500">내용</span>
+              <label className="block min-[400px]:col-span-2"><span className="mb-1 block text-xs text-slate-500">내용{form.type === "특이사항" && !form.id ? " (고객 메모에도 함께 저장됩니다)" : ""}</span>
                 <textarea className={inp} rows={3} value={form.content ?? ""} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder={form.type === "방문예약" ? "예) 전화 통화, 목요일 저녁 6시 가능" : "예) 세디·카본 교체, 다음엔 오후 방문 요청"} /></label>
             </div>
             <div className="flex gap-2">
@@ -115,10 +115,10 @@ export default function RecordsTab({
         </ol>
       </div>
       {!form && (
-        <div className="border-t border-slate-200 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="flex gap-2">
-            <button onClick={() => setForm({ date: todayStr(), type: "방문예약", content: "", nextVisit: "" })} className="flex-1 rounded-xl border border-violet-300 bg-violet-50 py-3 font-semibold text-violet-700 active:bg-violet-100">📅 방문 예약</button>
-            <button onClick={() => setForm({ date: todayStr(), type: "상담", content: "", nextVisit: "" })} className="flex-[1.4] rounded-xl bg-sky-700 py-3 font-semibold text-white active:bg-sky-800">+ 이력 기록</button>
+        <div className="border-t border-slate-200 bg-white px-4 pt-3 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+0.5rem))]">
+          <div className="flex gap-3">
+            <button onClick={() => setForm({ date: todayStr(), type: "방문예약", content: "", nextVisit: "" })} className="flex-1 rounded-2xl border border-violet-300 bg-violet-50 py-3.5 font-semibold text-violet-700 active:bg-violet-100">📅 방문 예약</button>
+            <button onClick={() => setForm({ date: todayStr(), type: "특이사항", content: "", nextVisit: "" })} className="flex-[1.4] rounded-2xl bg-sky-700 py-3.5 font-semibold text-white active:bg-sky-800">+ 이력 · 특이사항</button>
           </div>
         </div>
       )}
