@@ -75,16 +75,18 @@ export default function CustomerApp() {
   }
   /** 필터 교환 완료: 선택한 날짜로 교환일 갱신 + 방문 이력(필터교체) 기록 (필터 정보 연결) */
   async function replaceFilters(c: Customer, idx: number[], date: string) {
-    const targets = idx.filter((i) => c.filters[i] && c.filters[i].lastChange < date);
-    if (!targets.length) { setToast("이미 같은 날짜 이후에 교환 기록이 있습니다."); return; }
-    const names = targets.map((i) => c.filters[i].name);
-    const next = { ...c, filters: c.filters.map((f, j) => (targets.includes(j) ? { ...f, lastChange: date } : f)) };
-    await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify(next) });
-    await api("/api/records", { method: "POST", body: JSON.stringify({
-      customerId: c.id, date, type: "필터교체", content: `${names.join(", ")} 교체`, nextVisit: "",
-      filters: targets.map((i) => ({ name: c.filters[i].name, prev: c.filters[i].lastChange })),
-    }) });
-    setToast(`${names.join(", ")} 교환 완료 (${date}) · 이력에 기록됨`); await load();
+    const names = idx.filter((i) => c.filters[i]).map((i) => c.filters[i].name);
+    try {
+      const { customer, record }: { customer: Customer; record: ServiceRecord } =
+        await api(`/api/customers/${encodeURIComponent(c.id)}/replace`, { method: "POST", body: JSON.stringify({ names, date }) });
+      // 전체 재조회 없이 화면 상태만 바로 갱신
+      setCustomers((l) => (l ?? []).map((x) => (x.id === customer.id ? customer : x)));
+      setRecords((l) => [record, ...l]);
+      setToast(`${record.filters?.map((f) => f.name).join(", ")} 교환 완료 (${date}) · 이력에 기록됨`);
+    } catch (e) {
+      setToast((e as Error).message);
+      await load().catch(() => {}); // 서버 상태와 다시 맞춤
+    }
   }
   /** 이력(필터교체)을 추가·수정·삭제했을 때 필터의 최근 교환일을 이력 기준으로 다시 맞춤 */
   async function syncFilters(customerId: string, old?: ServiceRecord, savedId?: string) {
