@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
-import { balanceOf, cycleLabel, daysLeft, dueDate, dueLabel, dueTone, fullAddr, roadFull, pendingVisit, regionOf, todayStr, won } from "../lib/utils";
+import { addDays, balanceOf, cycleLabel, daysLeft, dueDate, dueLabel, dueTone, fullAddr, nextDue, roadFull, pendingVisit, regionOf, todayStr, won } from "../lib/utils";
 import type { VisitAct } from "./RecordsTab";
 import AddrLines from "./AddrLines";
 import AddrToggle from "./AddrToggle";
@@ -19,20 +19,24 @@ function Row({ label, value }: { label: string; value?: string | number }) {
 }
 
 export default function CustomerDetail({
-  c, payments, records, onEdit, onDelete, onReplace, onVisit, onFilterDue, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
+  c, payments, records, onEdit, onDelete, onReplace, onVisit, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
 }: {
   c: Customer; payments: Payment[]; records: ServiceRecord[]; onEdit: () => void; onDelete: () => void;
-  onReplace: (idx: number[], date: string) => Promise<void>; onVisit: VisitAct; onFilterDue: (idx: number, date: string | null) => Promise<void>; onRecordSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>; onRecordRemoved: (old: ServiceRecord) => Promise<void>;
+  onReplace: (idx: number[], date: string) => Promise<void>; onVisit: VisitAct; onRecordSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>; onRecordRemoved: (old: ServiceRecord) => Promise<void>;
   onPaymentSaved: (p: Payment) => void; onPaymentRemoved: (id: string) => void; notify: (m: string) => void;
 }) {
   const [tab, setTab] = useState<"info" | "pay" | "rec">("info");
   const [rep, setRep] = useState<{ target: number[]; date: string } | null>(null);
   const [repBusy, setRepBusy] = useState(false);
   const [repErr, setRepErr] = useState("");
-  const [dueEdit, setDueEdit] = useState<{ i: number; date: string } | null>(null);
   const repBox = useRef<HTMLDivElement>(null);
   // 교환 입력창이 열리면 화면 안으로 스크롤 (목록 아래쪽 버튼을 눌렀을 때 창이 안 보이는 문제 방지)
   useEffect(() => { if (rep) repBox.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [rep?.target.join(",")]);
+  // 교환일 기본값: 최근 방문/AS가 1~2일 전이고 그 뒤 교체 기록이 없으면 그 방문일 (다음 날 입력하는 실수 방지)
+  const lastVisit = records.filter((r) => r.type === "방문" || r.type === "AS").map((r) => r.date).sort().at(-1);
+  const visitDay = lastVisit && daysLeft(lastVisit) <= -1 && daysLeft(lastVisit) >= -2 && !records.some((r) => r.type === "필터교체" && r.date >= lastVisit) ? lastVisit : null;
+  const openRep = (target: number[]) => { setRepErr(""); setRep({ target, date: visitDay ?? todayStr() }); };
+  const wd = (s: string) => (s ? `(${"일월화수목금토"[new Date(`${s}T00:00:00`).getDay()]})` : "");
   async function confirmRep() {
     if (!rep || repBusy) return;
     setRepBusy(true); setRepErr("");
@@ -56,6 +60,9 @@ export default function CustomerDetail({
       {tab === "rec" && <RecordsTab customerId={c.id} records={records} notify={notify} onVisit={onVisit} onSaved={onRecordSaved} onRemoved={onRecordRemoved} />}
       {tab === "info" && (<>
       <div className="flex-1 space-y-4 overflow-y-auto bg-slate-100 p-4">
+        {nextDue(c) && (
+          <p className="text-sm text-slate-600">🔧 다음 교환 <b>{nextDue(c)!.filter.name}</b> {nextDue(c)!.date} <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${dueTone(nextDue(c)!.left)}`}>{dueLabel(nextDue(c)!.left)}</span></p>
+        )}
         {(bal > 0 || visit) && (
           <div className="flex flex-wrap gap-2">
             {bal > 0 && <button onClick={() => setTab("pay")} className="rounded-full bg-red-100 px-3 py-1.5 text-sm font-semibold text-red-700">미수금 {won(bal)}</button>}
@@ -112,14 +119,19 @@ export default function CustomerDetail({
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-sky-800">필터 교환</h3>
             {c.filters.length > 0 && (
-              <button onClick={() => { setRepErr(""); setRep({ target: c.filters.map((_, i) => i), date: todayStr() }); }} className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 active:bg-sky-100">전체 교환</button>
+              <button onClick={() => openRep(c.filters.map((_, i) => i))} className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 active:bg-sky-100">전체 교환</button>
             )}
           </div>
           {c.filters.length === 0 && <p className="text-sm text-slate-400">등록된 필터가 없습니다.</p>}
           {rep && (
             <div ref={repBox} className="mb-3 space-y-2 rounded-xl bg-sky-50 p-3 ring-1 ring-sky-200">
               <p className="text-sm font-semibold text-sky-800">{rep.target.map((i) => c.filters[i]?.name).filter(Boolean).join(", ")} 교환</p>
-              <label className="block"><span className="mb-1 block text-xs text-slate-500">교환일</span>
+              <div className="flex flex-wrap gap-1.5">
+                {[["오늘", todayStr()], ["어제", addDays(todayStr(), -1)], ...(visitDay && visitDay !== addDays(todayStr(), -1) ? [["방문일", visitDay]] : [])].map(([l, v]) => (
+                  <button key={l} type="button" onClick={() => setRep({ ...rep, date: v })} className={`rounded-full px-3 py-1.5 text-sm font-medium ${rep.date === v ? "bg-sky-700 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>{l}</button>
+                ))}
+              </div>
+              <label className="block"><span className="mb-1 block text-xs text-slate-500">교환일 <b className="text-sky-800">{rep.date} {wd(rep.date)}</b> 로 기록됩니다{visitDay && rep.date === visitDay ? " · 최근 방문일로 채움" : ""}</span>
                 <input type="date" max={todayStr()} value={rep.date} onChange={(e) => setRep({ ...rep, date: e.target.value })}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200" /></label>
               {repErr && <p className="rounded-lg bg-red-50 p-2.5 text-sm font-medium text-red-700">⚠ {repErr}</p>}
@@ -141,23 +153,16 @@ export default function CustomerDetail({
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${dueTone(left)}`}>{dueLabel(left)}</span>
                     </div>
                     <div className="mt-0.5 text-xs text-slate-500">
-                      주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange} · 예정 {d}{f.dueOverride && <b className="ml-1 text-violet-600">(직접 지정)</b>}
-                      <button onClick={() => setDueEdit({ i, date: d })} className="ml-2 text-sky-700 underline">예정일 변경</button>
+                      주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange} · 예정 {d}
                     </div>
-                    {dueEdit?.i === i && (
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <input type="date" value={dueEdit.date} onChange={(e) => setDueEdit({ i, date: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
-                        <button disabled={!dueEdit.date} onClick={() => onFilterDue(i, dueEdit.date).then(() => setDueEdit(null), () => {})} className="rounded-lg bg-sky-700 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60">저장</button>
-                        {f.dueOverride && <button onClick={() => onFilterDue(i, null).then(() => setDueEdit(null), () => {})} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600">지정 해제</button>}
-                        <button onClick={() => setDueEdit(null)} className="px-2 py-1.5 text-sm text-slate-500">닫기</button>
-                      </div>
-                    )}
                   </div>
-                  {f.lastChange >= todayStr() ? (
+                  {f.lastChange > todayStr() ? (
+                    <button onClick={onEdit} className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-500 active:bg-slate-100">교환일 수정</button>
+                  ) : f.lastChange === todayStr() ? (
                     <button onClick={() => { setTab("rec"); notify("오늘 교환 처리된 필터입니다. 날짜가 틀렸다면 '필터교체' 기록의 [수정]에서 날짜를 바꾸세요."); }}
                       className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-500 active:bg-slate-100">교환됨 · 수정</button>
                   ) : (
-                    <button onClick={() => { setRepErr(""); setRep({ target: [i], date: todayStr() }); }} disabled={repBusy}
+                    <button onClick={() => openRep([i])} disabled={repBusy}
                       className="shrink-0 rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 active:bg-sky-50 disabled:opacity-40">교환 완료</button>
                   )}
                 </li>

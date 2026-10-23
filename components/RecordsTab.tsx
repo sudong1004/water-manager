@@ -7,7 +7,7 @@ import { api } from "../lib/api";
 const inp = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200";
 const ICON: Record<string, string> = { 방문: "🚗", 필터교체: "🔧", AS: "🛠", 상담: "💬", 민원: "⚠️", 특이사항: "📌" };
 
-export type VisitAct = (customerId: string, act: { type: "done" } | { type: "cancel" } | { type: "move"; date: string }) => Promise<void>;
+export type VisitAct = (customerId: string, act: { type: "done" } | { type: "cancel" }) => Promise<void>;
 
 export default function RecordsTab({
   customerId, records, notify, onSaved, onRemoved, onVisit,
@@ -25,9 +25,8 @@ export default function RecordsTab({
   const visible = ftype === "all" ? sorted : sorted.filter((r) => r.type === ftype);
   const visitRec = pendingVisitRecord(records);
   const visit = visitRec?.nextVisit ?? null;
-  const [moving, setMoving] = useState<string | null>(null);
   const [vbusy, setVbusy] = useState(false);
-  const act = async (a: Parameters<VisitAct>[1]) => { setVbusy(true); try { await onVisit(customerId, a); setMoving(null); } finally { setVbusy(false); } };
+  const act = async (a: Parameters<VisitAct>[1]) => { setVbusy(true); try { await onVisit(customerId, a); } finally { setVbusy(false); } };
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -57,19 +56,10 @@ export default function RecordsTab({
             <div className={`text-sm font-semibold ${daysLeft(visit) < 0 ? "text-red-700" : "text-violet-700"}`}>
               📅 다음 방문 예정 {visit} · {dueLabel(daysLeft(visit))}
             </div>
-            {moving === null ? (
-              <div className="flex gap-2">
-                <button disabled={vbusy} onClick={() => act({ type: "done" })} className="flex-[2] rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white active:bg-emerald-700 disabled:opacity-60">✅ 방문 완료</button>
-                <button disabled={vbusy} onClick={() => setMoving(visit)} className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-700 disabled:opacity-60">📅 날짜 변경</button>
-                <button disabled={vbusy} onClick={() => confirm("방문 예정을 취소할까요?") && act({ type: "cancel" })} className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-500 disabled:opacity-60">✖ 취소</button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <input type="date" value={moving} onChange={(e) => setMoving(e.target.value)} className={inp} />
-                <button disabled={vbusy || !moving} onClick={() => act({ type: "move", date: moving })} className="shrink-0 rounded-lg bg-sky-700 px-4 text-sm font-semibold text-white disabled:opacity-60">변경</button>
-                <button disabled={vbusy} onClick={() => setMoving(null)} className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-600">닫기</button>
-              </div>
-            )}
+            <div className="flex gap-2">
+              <button disabled={vbusy} onClick={() => act({ type: "done" })} className="flex-[2] rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white active:bg-emerald-700 disabled:opacity-60">✅ 방문 완료</button>
+              <button disabled={vbusy} onClick={() => confirm("방문 예정을 취소할까요?") && act({ type: "cancel" })} className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-500 disabled:opacity-60">✖ 취소</button>
+            </div>
           </div>
         )}
         {form && (
@@ -83,7 +73,7 @@ export default function RecordsTab({
             <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
               <label className="block"><span className="mb-1 block text-xs text-slate-500">날짜</span>
                 <input className={inp} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
-              <label className="block"><span className="mb-1 block text-xs text-slate-500">다음 방문 예정일 (선택)</span>
+              <label className="block"><span className="mb-1 block text-xs text-slate-500">다음 방문 예약 (선택)</span>
                 <input className={inp} type="date" value={form.nextVisit ?? ""} onChange={(e) => setForm({ ...form, nextVisit: e.target.value })} /></label>
               <label className="block min-[400px]:col-span-2"><span className="mb-1 block text-xs text-slate-500">내용 · 특이사항</span>
                 <textarea className={inp} rows={3} value={form.content ?? ""} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder="예) 세디·카본 교체, 다음엔 오후 방문 요청" /></label>
@@ -115,7 +105,8 @@ export default function RecordsTab({
                 </span>
               </div>
               {r.content && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">{r.content}</p>}
-              {r.nextVisit && <p className="mt-1 text-xs font-medium text-violet-600">다음 방문 예정 {r.nextVisit}</p>}
+              {r.nextVisit && r !== visitRec && <p className="mt-1 text-xs text-slate-400">↳ 방문 예정 {r.nextVisit} · 처리됨</p>}
+              {r.nextVisit && r === visitRec && <p className="mt-1 text-xs font-medium text-violet-600">↑ 위 예정 카드에서 관리</p>}
             </li>
           ))}
         </ol>

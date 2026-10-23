@@ -101,8 +101,7 @@ export default function CustomerForm({
                   <Field label="교환주기(일)">
                     <input className={inputCls} type="number" inputMode="numeric" value={f.cycleDays} onChange={(e) => setFilter(i, { cycleDays: Number(e.target.value) || 0 })} />
                   </Field>
-                  <Field label="최근 교환일"><input className={inputCls} type="date" value={f.lastChange} onChange={(e) => setFilter(i, { lastChange: e.target.value, dueOverride: undefined })} /></Field>
-                  <Field label="예정일 직접 지정(선택)"><input className={inputCls} type="date" value={f.dueOverride ?? ""} onChange={(e) => setFilter(i, { dueOverride: e.target.value || undefined })} /></Field>
+                  <Field label="최근 교환일"><input className={inputCls} type="date" value={f.lastChange} onChange={(e) => setFilter(i, { lastChange: e.target.value })} /></Field>
                   <div className="flex items-end justify-between gap-2 pb-1">
                     <div className="text-xs text-slate-500">
                       <div>교환예정</div>

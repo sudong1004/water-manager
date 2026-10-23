@@ -1,14 +1,13 @@
 import type { Customer, ServiceRecord } from "./types";
 import { daysLeft, pendingVisitRecord, todayStr } from "./utils";
 
-export type IssueKind = "gap" | "mismatch" | "visit" | "future" | "nolink";
+export type IssueKind = "gap" | "mismatch" | "visit" | "nolink";
 export type Issue = { kind: IssueKind; customerId: string; name: string; text: string };
 
 export const ISSUE_LABEL: Record<IssueKind, { icon: string; title: string; hint: string }> = {
   gap: { icon: "📆", title: "방문일과 교체일이 다름", hint: "방문 이력과 필터교체 이력의 날짜가 1~2일 차이 납니다. 교체일을 다음 날 입력하면서 틀어졌을 수 있습니다." },
   mismatch: { icon: "🔧", title: "필터 교환일이 이력과 다름", hint: "필터의 최근 교환일이 이력의 마지막 교체일과 다릅니다. 엑셀 가져오기나 수동 수정으로 어긋났을 수 있습니다." },
   visit: { icon: "📅", title: "지난 방문 예정이 남아 있음", hint: "예정일이 지났는데 완료·취소하지 않았습니다." },
-  future: { icon: "⏩", title: "교환일이 미래 날짜", hint: "필터 최근 교환일이 오늘보다 뒤입니다. 날짜를 잘못 입력했을 수 있습니다." },
   nolink: { icon: "❓", title: "교체 이력에 필터 정보 없음", hint: "필터교체 이력인데 어떤 필터인지 알 수 없어 교환일 자동 맞춤이 되지 않습니다." },
 };
 
@@ -42,7 +41,6 @@ export function findIssues(customers: Customer[], records: ServiceRecord[]): Iss
       const dates = changes.filter((r) => namesOf(r).includes(f.name)).map((r) => r.date).sort();
       const last = dates.at(-1);
       if (last && last !== f.lastChange && f.lastChange <= today) add("mismatch", `${f.name}: 필터 ${f.lastChange} / 이력 ${last}`);
-      if (f.lastChange > today) add("future", `${f.name}: ${f.lastChange}`);
     }
     for (const r of changes) if (!namesOf(r).length) add("nolink", `${r.date} "${(r.content ?? "").slice(0, 20)}"`);
     const pv = pendingVisitRecord(rs);
