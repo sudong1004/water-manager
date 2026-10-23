@@ -30,7 +30,7 @@ export default function ImportView({ reload, notify }: { reload: () => Promise<v
     if (!pv) return;
     setBusy(true);
     try {
-      const log: ImportLog = await api("/api/import/apply", { method: "POST", body: JSON.stringify({ fileName: pv.fileName, errors: pv.summary.errors, items: pv.items }) });
+      const log: ImportLog = await api("/api/import/apply", { method: "POST", body: JSON.stringify({ fileName: pv.fileName, errors: pv.summary.errors, unchanged: pv.summary.same, items: pv.items.filter((x) => x.status !== "same") }) });
       notify(`반영 완료: 신규 ${log.added}, 변경 ${log.updated}`);
       setPv(null); await reload(); await loadLogs();
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }

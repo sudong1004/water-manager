@@ -3,6 +3,7 @@ import { getRepos, newId, type Repos } from "./repo";
 
 type Row = { id: string; customerId: string };
 type Key = "payments" | "records";
+const readJson = <B,>(req: Request) => req.json().then((b) => b as B, () => null);
 const errRes = (e: unknown) => NextResponse.json({ error: (e as Error).message }, { status: 500 });
 
 export function collectionRoutes<T extends Row>(key: Key, validate: (b: Partial<T>) => string | null) {
@@ -12,7 +13,8 @@ export function collectionRoutes<T extends Row>(key: Key, validate: (b: Partial<
       try { return NextResponse.json(await (await repo()).list()); } catch (e) { return errRes(e); }
     },
     async POST(req: Request) {
-      const body = (await req.json()) as Partial<T>;
+      const body = await readJson<Partial<T>>(req);
+      if (!body) return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
       const err = validate(body);
       if (err) return NextResponse.json({ error: err }, { status: 400 });
       try {
@@ -30,7 +32,8 @@ export function itemRoutes<T extends Row>(key: Key, validate: (b: Partial<T>) =>
   return {
     async PUT(req: Request, { params }: Ctx) {
       const { id } = await params;
-      const body = (await req.json()) as Partial<T>;
+      const body = await readJson<Partial<T>>(req);
+      if (!body) return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
       const err = validate(body);
       if (err) return NextResponse.json({ error: err }, { status: 400 });
       try {

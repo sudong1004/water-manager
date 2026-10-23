@@ -1,2 +1,12 @@
+const security = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+];
+
 /** @type {import('next').NextConfig} */
-export default { reactStrictMode: true };
+export default {
+  reactStrictMode: true,
+  poweredByHeader: false,
+  headers: async () => [{ source: "/:path*", headers: security }],
+};

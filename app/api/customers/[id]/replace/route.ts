@@ -8,7 +8,9 @@ type Ctx = { params: Promise<{ id: string }> };
 /** 필터 교환 완료: 교환일 갱신 + 필터교체 이력 기록을 서버에서 한 번에 처리 */
 export async function POST(req: Request, { params }: Ctx) {
   const { id } = await params;
-  const { names, date } = (await req.json()) as { names: string[]; date: string };
+  const body = (await req.json().catch(() => null)) as { names: string[]; date: string } | null;
+  if (!body) return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
+  const { names, date } = body;
   if (!Array.isArray(names) || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "")) {
     return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
   }

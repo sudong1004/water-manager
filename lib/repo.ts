@@ -61,13 +61,14 @@ const fail = (e: { message: string; code?: string } | null) => {
   throw new Error(e.message);
 };
 
-function sbRepo<T extends { id: string; customerId?: string }>(sb: SB, table: string, hasCustomer: boolean): Repo<T> {
+// conflict: upsert 충돌 기준 (customers는 기본키가 (owner_id,id), 나머지는 id)
+function sbRepo<T extends { id: string; customerId?: string }>(sb: SB, table: string, hasCustomer: boolean, conflict = "id"): Repo<T> {
   const cols = (row: T) => ({ id: row.id, data: row, ...(hasCustomer ? { customer_id: row.customerId } : {}) });
   return {
     async list() {
       const out: T[] = [];
       for (let from = 0; ; from += 1000) {
-        const { data, error } = await sb.from(table).select("data").order("created_at", { ascending: false }).range(from, from + 999);
+        const { data, error } = await sb.from(table).select("data").order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, from + 999);
         fail(error);
         out.push(...(data ?? []).map((r) => r.data as T));
         if (!data || data.length < 1000) break;
@@ -95,8 +96,8 @@ function sbRepo<T extends { id: string; customerId?: string }>(sb: SB, table: st
     async upsertMany(rows) {
       if (!rows.length) return;
       for (let i = 0; i < rows.length; i += 200) {
-        // owner_id는 DB 기본값(auth.uid())으로 채워지고, 기본키(owner_id,id) 충돌 시 갱신
-        const { error } = await sb.from(table).upsert(rows.slice(i, i + 200).map(cols), { onConflict: "owner_id,id" });
+        // owner_id는 DB 기본값(auth.uid())으로 채워지고, 기본키 충돌 시 갱신
+        const { error } = await sb.from(table).upsert(rows.slice(i, i + 200).map(cols), { onConflict: conflict });
         fail(error);
       }
     },
@@ -128,7 +129,7 @@ export async function getRepos(): Promise<Repos> {
   }
   const sb = await serverClient();
   return {
-    customers: sbRepo<Customer>(sb, "customers", false),
+    customers: sbRepo<Customer>(sb, "customers", false, "owner_id,id"),
     payments: sbRepo<Payment>(sb, "payments", true),
     records: sbRepo<ServiceRecord>(sb, "records", true),
     imports: sbRepo<ImportLog>(sb, "imports", false),

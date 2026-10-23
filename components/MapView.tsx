@@ -117,19 +117,28 @@ export default function MapView({
       let n = 0;
       setProg({ done: 0, total: todo.length });
       let saved = 0;
+      // 좌표만 모아서 20명씩 한 번에 저장 (고객 전체를 덮어쓰지 않음)
+      let pending: { id: string; lat?: number; lng?: number; roadAddr?: string; geoAddr?: string }[] = [];
+      const flush = async () => {
+        if (!pending.length) return;
+        const batch = pending; pending = [];
+        try { await api("/api/customers/geo", { method: "POST", body: JSON.stringify({ items: batch }) }); saved += batch.length; }
+        catch { batch.forEach((b) => fails.push(todo.find((t) => t.id === b.id)?.name ?? b.id)); }
+      };
       for (const c of todo) {
         tried.add(triedKey(c));
         const r = await geocode(kakao, c);
         if (r) {
-          try { await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...c, lat: r.lat, lng: r.lng, roadAddr: r.road, geoAddr: mapAddress(c) }) }); saved++; }
-          catch { fails.push(c.name); }
+          pending.push({ id: c.id, lat: r.lat, lng: r.lng, roadAddr: r.road, geoAddr: mapAddress(c) });
         } else if (hasCoord(c)) {
           // 위치는 이미 있고 도로명만 못 찾은 경우: 빈 값으로 저장해 다시 시도하지 않게 함
-          try { await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...c, roadAddr: "" }) }); saved++; } catch { /* ignore */ }
+          pending.push({ id: c.id, roadAddr: "" });
         } else fails.push(c.name);
+        if (pending.length >= 20) await flush();
         setProg({ done: ++n, total: todo.length });
         await sleep(60);
       }
+      await flush();
       setFailed(fails);
       setProg(null);
       if (saved > 0) await reload();

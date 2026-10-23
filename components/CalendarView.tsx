@@ -138,11 +138,11 @@ export default function CalendarView({
     if (!confirm(`이 기간 ${targets.length}건을 "PC 입력 ${value ? "완료" : "안 함"}"으로 표시할까요?`)) return;
     setBusy(true);
     try {
-      const rById = new Map(records.map((r) => [r.id, r]));
-      const pById = new Map(payments.map((p) => [p.id, p]));
-      await Promise.all(targets.map((i) => i.kind === "record"
-        ? api(`/api/records/${i.id}`, { method: "PUT", body: JSON.stringify({ ...rById.get(i.id), entered: value }) })
-        : api(`/api/payments/${i.id}`, { method: "PUT", body: JSON.stringify({ ...pById.get(i.id), entered: value }) })));
+      await api("/api/work/entered", { method: "POST", body: JSON.stringify({
+        records: targets.filter((i) => i.kind === "record").map((i) => i.id),
+        payments: targets.filter((i) => i.kind === "payment").map((i) => i.id),
+        value,
+      }) });
       await reload(); notify(`${targets.length}건을 PC 입력 ${value ? "완료" : "안 함"}으로 표시했습니다.`);
     } catch (e) { notify((e as Error).message); } finally { setBusy(false); }
   }

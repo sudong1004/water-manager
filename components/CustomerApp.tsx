@@ -43,11 +43,24 @@ export default function CustomerApp() {
     window.location.href = "/login";
   }
 
+  const [loadErr, setLoadErr] = useState("");
   const load = useCallback(async () => {
     const [c, p, r] = await Promise.all([api("/api/customers"), api("/api/payments"), api("/api/records")]);
-    setCustomers(c); setPayments(p); setRecords(r);
+    setCustomers(c); setPayments(p); setRecords(r); setLoadErr("");
   }, []);
-  useEffect(() => { load().catch((e) => setToast(e.message)); }, [load]);
+  const firstLoad = useCallback(() => { setLoadErr(""); load().catch((e) => setLoadErr(e.message)); }, [load]);
+  useEffect(() => { firstLoad(); }, [firstLoad]);
+  // 앱으로 돌아오면(다른 기기에서 바꾼 내용 반영) 조용히 다시 불러옴
+  useEffect(() => {
+    let last = Date.now();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 30_000) return;
+      last = Date.now();
+      load().catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [load]);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 2500); return () => clearTimeout(t); } }, [toast]);
   useEffect(() => {
     document.body.style.overflow = mode ? "hidden" : "";
@@ -152,7 +165,12 @@ export default function CustomerApp() {
       </header>
 
       {customers === null ? (
-        <p className="py-24 text-center text-slate-400">불러오는 중…</p>
+        loadErr ? (
+          <div className="flex flex-col items-center gap-3 py-24 text-center">
+            <p className="px-6 text-sm text-red-600">{loadErr}</p>
+            <button onClick={firstLoad} className="rounded-xl bg-sky-700 px-5 py-2.5 font-semibold text-white active:bg-sky-800">다시 불러오기</button>
+          </div>
+        ) : <p className="py-24 text-center text-slate-400">불러오는 중…</p>
       ) : (
         <main>
           {tab === "home" && <DashboardView customers={list} payments={payments} records={records} open={open} go={go} />}
