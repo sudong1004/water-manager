@@ -220,7 +220,7 @@ export default function CustomerApp() {
           {tab === "map" && <MapView customers={list} balances={balances} open={open} reload={load} notify={setToast} />}
           {tab === "calendar" && <CalendarView customers={list} payments={payments} records={records} open={open} reload={load} notify={setToast} />}
           {tab === "payments" && <PaymentsView customers={list} payments={payments} open={open} />}
-          {tab === "check" && <CheckView customers={list} records={records} open={open} reload={load} notify={setToast} />}
+          {tab === "check" && <CheckView customers={list} records={records} open={open} />}
           {tab === "import" && <ImportView reload={load} notify={setToast} />}
         </main>
       )}
