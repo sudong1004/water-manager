@@ -13,8 +13,9 @@ import PaymentsView from "./PaymentsView";
 import ImportView from "./ImportView";
 import MapView from "./MapView";
 import CalendarView from "./CalendarView";
+import CheckView from "./CheckView";
 
-type Tab = "home" | "customers" | "map" | "calendar" | "payments" | "import";
+type Tab = "home" | "customers" | "map" | "calendar" | "payments" | "import" | "check";
 type Mode = { type: "view"; id: string } | { type: "edit"; id: string } | { type: "new" } | null;
 
 const TABS: { k: Tab; icon: string; label: string }[] = [
@@ -174,6 +175,7 @@ export default function CustomerApp() {
             ))}
           </nav>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <button onClick={() => setTab("check")} title="데이터 점검" className={`whitespace-nowrap rounded-lg border px-2.5 py-2 text-sm font-medium active:bg-slate-50 ${tab === "check" ? "border-sky-500 bg-sky-50 text-sky-700" : "border-slate-300 text-slate-600"}`}>🔍 점검</button>
             {USE_SUPABASE && (
               <button onClick={logout} title={email} className="whitespace-nowrap rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-medium text-slate-600 active:bg-slate-50">로그아웃</button>
             )}
@@ -195,6 +197,7 @@ export default function CustomerApp() {
           {tab === "map" && <MapView customers={list} balances={balances} open={open} reload={load} notify={setToast} />}
           {tab === "calendar" && <CalendarView customers={list} payments={payments} records={records} open={open} reload={load} notify={setToast} />}
           {tab === "payments" && <PaymentsView customers={list} payments={payments} open={open} />}
+          {tab === "check" && <CheckView customers={list} records={records} open={open} />}
           {tab === "import" && <ImportView reload={load} notify={setToast} />}
         </main>
       )}
