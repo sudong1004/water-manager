@@ -108,7 +108,7 @@ export function mergeCustomer(old: Customer, inc: Customer): { merged: Customer;
     const o = filters[i];
     const last = nf.lastChange > o.lastChange ? nf.lastChange : o.lastChange;
     if (o.cycleDays !== nf.cycleDays || o.lastChange !== last) {
-      filters[i] = { name: o.name, cycleDays: nf.cycleDays, lastChange: last };
+      filters[i] = { name: o.name, cycleDays: nf.cycleDays, lastChange: last, ...(last === o.lastChange && o.nextDate ? { nextDate: o.nextDate } : {}) };
       fChanged = true;
     }
   }

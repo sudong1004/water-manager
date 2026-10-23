@@ -40,7 +40,7 @@ export function findIssues(customers: Customer[], records: ServiceRecord[]): Iss
     for (const f of c.filters) {
       const dates = changes.filter((r) => namesOf(r).includes(f.name)).map((r) => r.date).sort();
       const last = dates.at(-1);
-      if (last && last !== f.lastChange && f.lastChange <= today) add("mismatch", `${f.name}: 필터 ${f.lastChange} / 이력 ${last}`);
+      if (last && f.lastChange && last !== f.lastChange && f.lastChange <= today) add("mismatch", `${f.name}: 필터 ${f.lastChange} / 이력 ${last}`);
     }
     for (const r of changes) if (!namesOf(r).length) add("nolink", `${r.date} "${(r.content ?? "").slice(0, 20)}"`);
     const pv = pendingVisitRecord(rs);

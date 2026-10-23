@@ -102,10 +102,11 @@ export default function CustomerForm({
                     <input className={inputCls} type="number" inputMode="numeric" value={f.cycleDays} onChange={(e) => setFilter(i, { cycleDays: Number(e.target.value) || 0 })} />
                   </Field>
                   <Field label="최근 교환일"><input className={inputCls} type="date" value={f.lastChange} onChange={(e) => setFilter(i, { lastChange: e.target.value })} /></Field>
+                  <Field label="교환 예정일 지정 (선택)"><input className={inputCls} type="date" value={f.nextDate ?? ""} onChange={(e) => setFilter(i, { nextDate: e.target.value || undefined })} /></Field>
                   <div className="flex items-end justify-between gap-2 pb-1">
                     <div className="text-xs text-slate-500">
                       <div>교환예정</div>
-                      <div className="text-sm font-semibold text-slate-800">{f.lastChange && f.cycleDays ? dueDate(f) : "-"}</div>
+                      <div className="text-sm font-semibold text-slate-800">{dueDate(f) || "-"}</div>
                       <div>{f.cycleDays ? cycleLabel(f.cycleDays) : ""}</div>
                     </div>
                     <button type="button" className="rounded-lg px-2 py-1.5 text-sm text-red-600 active:bg-red-50" onClick={() => set("filters", c.filters.filter((_, j) => j !== i))}>삭제</button>

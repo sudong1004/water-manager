@@ -14,7 +14,8 @@ export const todayStr = () => {
 };
 
 export const addDays = (d: string, n: number) => fmt(toUTC(d) + n * DAY);
-export const dueDate = (f: FilterItem) => addDays(f.lastChange, f.cycleDays);
+/** 교환 예정일: 직접 지정한 날짜가 우선, 없으면 최근 교환일 + 주기, 둘 다 없으면 "" */
+export const dueDate = (f: FilterItem) => f.nextDate || (f.lastChange ? addDays(f.lastChange, f.cycleDays) : "");
 /** 오늘 기준 남은 일수 (음수 = 지연) */
 export const daysLeft = (date: string, today = todayStr()) => Math.round((toUTC(date) - toUTC(today)) / DAY);
 
@@ -23,8 +24,8 @@ export type Due = { filter: FilterItem; date: string; left: number };
 export function nextDue(c: Customer): Due | null {
   let best: Due | null = null;
   for (const f of c.filters) {
-    if (!f.lastChange) continue;
     const date = dueDate(f);
+    if (!date) continue;
     const left = daysLeft(date);
     if (!best || left < best.left) best = { filter: f, date, left };
   }

@@ -98,12 +98,12 @@ export default function CustomerApp() {
       // 전체 재조회 없이 화면 상태만 바로 갱신
       setCustomers((l) => (l ?? []).map((x) => (x.id === customer.id ? customer : x)));
       setRecords((l) => [record, ...l]);
-      setToast(`${record.filters?.map((f) => f.name).join(", ")} 교환 완료 (${date}) · 이력에 기록됨`);
+      setToast(`${record.filters?.map((f) => f.name).join(", ")} 교환 완료 (${date.slice(5)})`);
       setUndo(() => async () => {
         const names = new Set(record.filters?.map((f) => f.name));
         const restored = customer.filters.map((f) => {
           const was = c.filters.find((x) => x.name === f.name);
-          return names.has(f.name) && was ? { ...f, lastChange: was.lastChange } : f;
+          return names.has(f.name) && was ? { ...f, lastChange: was.lastChange, nextDate: was.nextDate } : f;
         });
         await api(`/api/records/${record.id}`, { method: "DELETE" });
         const back: Customer = await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...customer, filters: restored }) });
@@ -132,7 +132,7 @@ export default function CustomerApp() {
       const last = dates.length ? dates.sort().at(-1)! : prev ?? f.lastChange;
       if (last === f.lastChange) return f;
       changed = true;
-      return { ...f, lastChange: last };
+      return { ...f, lastChange: last, nextDate: undefined };
     });
     if (!changed) return;
     try {
@@ -252,8 +252,8 @@ export default function CustomerApp() {
       )}
 
       {toast && (
-        <div className="fixed bottom-28 left-1/2 z-40 flex max-w-[90vw] -translate-x-1/2 items-center gap-3 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg sm:bottom-8">
-          <span>{toast}</span>
+        <div className="fixed bottom-28 left-1/2 z-40 flex w-max max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-sm leading-snug text-white shadow-lg sm:bottom-8">
+          <span className="break-keep">{toast}</span>
           {undo && <button onClick={() => undo().catch((e) => { setUndo(null); setToast((e as Error).message); })} className="shrink-0 font-bold text-sky-300 underline">되돌리기</button>}
         </div>
       )}

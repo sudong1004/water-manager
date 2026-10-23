@@ -1,7 +1,8 @@
 export type FilterItem = {
   name: string;
   cycleDays: number; // 교환 주기(일)
-  lastChange: string; // YYYY-MM-DD
+  lastChange: string; // YYYY-MM-DD (비워둘 수 있음)
+  nextDate?: string; // 교환 예정일 직접 지정. 있으면 최근 교환일+주기 대신 이 날짜를 쓴다. 교환 완료하면 해제
 };
 
 export type Customer = {

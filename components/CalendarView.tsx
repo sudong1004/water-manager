@@ -40,7 +40,7 @@ export default function CalendarView({
     records.forEach((r) => recBy.set(r.customerId, [...(recBy.get(r.customerId) ?? []), r]));
     customers.forEach((c) => {
       const byDate = new Map<string, string[]>();
-      c.filters.forEach((f) => { if (f.lastChange) { const d = dueDate(f); byDate.set(d, [...(byDate.get(d) ?? []), f.name]); } });
+      c.filters.forEach((f) => { const d = dueDate(f); if (d) byDate.set(d, [...(byDate.get(d) ?? []), f.name]); });
       byDate.forEach((names, d) => add(d, { id: c.id, name: c.name, text: `${names.join(", ")} 교환 예정` }));
       const v = pendingVisit(recBy.get(c.id) ?? []);
       if (v) add(v, { id: c.id, name: c.name, text: "방문 예정" });

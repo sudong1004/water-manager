@@ -144,16 +144,16 @@ export default function CustomerDetail({
           <ul className="divide-y divide-slate-100">
             {c.filters.map((f, i) => {
               const d = dueDate(f);
-              const left = daysLeft(d);
+              const left = d ? daysLeft(d) : null;
               return (
                 <li key={i} className="flex items-center gap-3 py-2.5">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{f.name}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${dueTone(left)}`}>{dueLabel(left)}</span>
+                      {left !== null && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${dueTone(left)}`}>{dueLabel(left)}</span>}
                     </div>
                     <div className="mt-0.5 text-xs text-slate-500">
-                      주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange} · 예정 {d}
+                      주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange || "-"} · 예정 {d || "-"}{f.nextDate && <b className="ml-1 text-violet-600">(지정)</b>}
                     </div>
                   </div>
                   {f.lastChange > todayStr() ? (
