@@ -18,11 +18,11 @@ function Row({ label, value }: { label: string; value?: string | number }) {
 }
 
 export default function CustomerDetail({
-  c, payments, records, onEdit, onDelete, onReplace, onRecordChange, reload, notify,
+  c, payments, records, onEdit, onDelete, onReplace, onRecordChange, reload, onPaymentSaved, onPaymentRemoved, notify,
 }: {
   c: Customer; payments: Payment[]; records: ServiceRecord[]; onEdit: () => void; onDelete: () => void;
   onReplace: (idx: number[], date: string) => Promise<void>; onRecordChange: (customerId: string, old?: ServiceRecord, savedId?: string) => Promise<void>;
-  reload: () => Promise<void>; notify: (m: string) => void;
+  reload: () => Promise<void>; onPaymentSaved: (p: Payment) => void; onPaymentRemoved: (id: string) => void; notify: (m: string) => void;
 }) {
   const [tab, setTab] = useState<"info" | "pay" | "rec">("info");
   const [rep, setRep] = useState<{ target: number[]; date: string } | null>(null);
@@ -46,7 +46,7 @@ export default function CustomerDetail({
             className={`flex-1 border-b-2 py-3 text-sm font-semibold ${tab === k ? "border-sky-700 text-sky-700" : "border-transparent text-slate-500"}`}>{l}</button>
         ))}
       </div>
-      {tab === "pay" && <PaymentsTab customerId={c.id} monthlyFee={c.monthlyFee} payments={payments} reload={reload} notify={notify} />}
+      {tab === "pay" && <PaymentsTab customerId={c.id} monthlyFee={c.monthlyFee} payments={payments} onSaved={onPaymentSaved} onRemoved={onPaymentRemoved} notify={notify} />}
       {tab === "rec" && <RecordsTab customerId={c.id} records={records} reload={reload} notify={notify} onChange={onRecordChange} />}
       {tab === "info" && (<>
       <div className="flex-1 space-y-4 overflow-y-auto bg-slate-100 p-4">

@@ -178,6 +178,8 @@ export default function CustomerApp() {
                   payments={payments.filter((p) => p.customerId === current.id)}
                   records={records.filter((r) => r.customerId === current.id)}
                   reload={load} notify={setToast} onRecordChange={syncFilters}
+                  onPaymentSaved={(p) => setPayments((l) => (l.some((x) => x.id === p.id) ? l.map((x) => (x.id === p.id ? p : x)) : [p, ...l]))}
+                  onPaymentRemoved={(id) => setPayments((l) => l.filter((x) => x.id !== id))}
                   onEdit={() => setMode({ type: "edit", id: current.id })}
                   onDelete={() => remove(current)}
                   onReplace={(idx, date) => replaceFilters(current, idx, date)} />

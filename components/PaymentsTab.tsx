@@ -8,8 +8,8 @@ const METHODS = ["CMS", "카드", "현금", "계좌이체", "기타"];
 const inp = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200";
 
 export default function PaymentsTab({
-  customerId, monthlyFee, payments, reload, notify,
-}: { customerId: string; monthlyFee: number; payments: Payment[]; reload: () => Promise<void>; notify: (m: string) => void }) {
+  customerId, monthlyFee, payments, onSaved, onRemoved, notify,
+}: { customerId: string; monthlyFee: number; payments: Payment[]; onSaved: (p: Payment) => void; onRemoved: (id: string) => void; notify: (m: string) => void }) {
   const blank = (): Partial<Payment> => ({ date: todayStr(), kind: "수납", amount: monthlyFee || 0, method: "CMS", memo: "" });
   const [form, setForm] = useState<Partial<Payment> | null>(null);
   const [saving, setSaving] = useState(false);
@@ -21,15 +21,16 @@ export default function PaymentsTab({
     if (!form) return;
     setSaving(true);
     try {
-      if (form.id) await api(`/api/payments/${form.id}`, { method: "PUT", body: JSON.stringify(form) });
-      else await api("/api/payments", { method: "POST", body: JSON.stringify({ ...form, customerId }) });
-      await reload(); notify(form.id ? "수정되었습니다." : form.kind === "수납" ? "수납이 기록되었습니다." : "청구가 기록되었습니다.");
+      const saved: Payment = form.id
+        ? await api(`/api/payments/${form.id}`, { method: "PUT", body: JSON.stringify(form) })
+        : await api("/api/payments", { method: "POST", body: JSON.stringify({ ...form, customerId }) });
+      onSaved(saved); notify(form.id ? "수정되었습니다." : form.kind === "수납" ? "수납이 기록되었습니다." : "청구가 기록되었습니다.");
       setForm(null);
     } catch (err) { notify((err as Error).message); } finally { setSaving(false); }
   }
   async function del(p: Payment) {
     if (!confirm(`${p.date} ${p.kind} ${won(p.amount)} 기록을 삭제할까요?`)) return;
-    await api(`/api/payments/${p.id}`, { method: "DELETE" }); await reload(); notify("삭제되었습니다.");
+    try { await api(`/api/payments/${p.id}`, { method: "DELETE" }); onRemoved(p.id); notify("삭제되었습니다."); } catch (err) { notify((err as Error).message); }
   }
 
   return (
