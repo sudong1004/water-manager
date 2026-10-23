@@ -143,8 +143,13 @@ export default function CustomerDetail({
                       주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange} · 예정 {d}
                     </div>
                   </div>
-                  <button onClick={() => { setRepErr(""); setRep({ target: [i], date: todayStr() }); }} disabled={f.lastChange >= todayStr() || repBusy}
-                    className="shrink-0 rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 active:bg-sky-50 disabled:opacity-40">교환 완료</button>
+                  {f.lastChange >= todayStr() ? (
+                    <button onClick={() => { setTab("rec"); notify("오늘 교환 처리된 필터입니다. 날짜가 틀렸다면 '필터교체' 기록의 [수정]에서 날짜를 바꾸세요."); }}
+                      className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-500 active:bg-slate-100">교환됨 · 수정</button>
+                  ) : (
+                    <button onClick={() => { setRepErr(""); setRep({ target: [i], date: todayStr() }); }} disabled={repBusy}
+                      className="shrink-0 rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 active:bg-sky-50 disabled:opacity-40">교환 완료</button>
+                  )}
                 </li>
               );
             })}
