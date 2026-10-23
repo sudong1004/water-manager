@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
 import { balanceOf, cycleLabel, daysLeft, dueDate, dueLabel, dueTone, fullAddr, roadFull, pendingVisit, regionOf, todayStr, won } from "../lib/utils";
+import type { VisitAct } from "./RecordsTab";
 import AddrLines from "./AddrLines";
 import AddrToggle from "./AddrToggle";
 import PaymentsTab from "./PaymentsTab";
@@ -18,10 +19,10 @@ function Row({ label, value }: { label: string; value?: string | number }) {
 }
 
 export default function CustomerDetail({
-  c, payments, records, onEdit, onDelete, onReplace, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
+  c, payments, records, onEdit, onDelete, onReplace, onVisit, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
 }: {
   c: Customer; payments: Payment[]; records: ServiceRecord[]; onEdit: () => void; onDelete: () => void;
-  onReplace: (idx: number[], date: string) => Promise<void>; onRecordSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>; onRecordRemoved: (old: ServiceRecord) => Promise<void>;
+  onReplace: (idx: number[], date: string) => Promise<void>; onVisit: VisitAct; onRecordSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>; onRecordRemoved: (old: ServiceRecord) => Promise<void>;
   onPaymentSaved: (p: Payment) => void; onPaymentRemoved: (id: string) => void; notify: (m: string) => void;
 }) {
   const [tab, setTab] = useState<"info" | "pay" | "rec">("info");
@@ -47,7 +48,7 @@ export default function CustomerDetail({
         ))}
       </div>
       {tab === "pay" && <PaymentsTab customerId={c.id} monthlyFee={c.monthlyFee} payments={payments} onSaved={onPaymentSaved} onRemoved={onPaymentRemoved} notify={notify} />}
-      {tab === "rec" && <RecordsTab customerId={c.id} records={records} notify={notify} onSaved={onRecordSaved} onRemoved={onRecordRemoved} />}
+      {tab === "rec" && <RecordsTab customerId={c.id} records={records} notify={notify} onVisit={onVisit} onSaved={onRecordSaved} onRemoved={onRecordRemoved} />}
       {tab === "info" && (<>
       <div className="flex-1 space-y-4 overflow-y-auto bg-slate-100 p-4">
         {(bal > 0 || visit) && (

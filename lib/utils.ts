@@ -94,14 +94,15 @@ export const sumBy = (list: Payment[], kind: Payment["kind"]) => list.filter((p)
 export const balanceOf = (list: Payment[]) => Math.max(0, sumBy(list, "청구") - sumBy(list, "수납"));
 
 // ───────── 방문 예정 ─────────
-/** 가장 최근에 정한 다음 방문 예정일. 그 날짜 이후에 기록(방문 등)이 남아 있으면 완료된 것으로 본다. */
-export function pendingVisit(records: ServiceRecord[]): string | null {
-  const withNext = records.filter((r) => r.nextVisit).sort((a, b) => (b.date + b.nextVisit).localeCompare(a.date + a.nextVisit));
-  const r = withNext[0];
-  if (!r) return null;
-  const done = records.some((x) => x !== r && x.date >= r.nextVisit);
-  return done ? null : r.nextVisit;
+const VISIT_LIKE = ["방문", "AS", "필터교체"];
+/** 가장 최근에 정한 방문 예정이 담긴 이력. 완료/취소했거나, 그 뒤에 방문류 이력(또는 예정일 이후 기록)이 있으면 끝난 것으로 본다. */
+export function pendingVisitRecord(records: ServiceRecord[]): ServiceRecord | null {
+  const r = records.filter((x) => x.nextVisit).sort((a, b) => (b.date + b.nextVisit).localeCompare(a.date + a.nextVisit))[0];
+  if (!r || r.visitClosed) return null;
+  const done = records.some((x) => x !== r && ((VISIT_LIKE.includes(x.type) && x.date > r.date) || x.date >= r.nextVisit));
+  return done ? null : r;
 }
+export const pendingVisit = (records: ServiceRecord[]): string | null => pendingVisitRecord(records)?.nextVisit ?? null;
 
 // ───────── 지도 ─────────
 /** 지도 검색용 주소: 주소1 + 주소2의 번지까지만 (동·호수, 아파트명 제거) */

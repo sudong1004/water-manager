@@ -62,6 +62,7 @@ export type ServiceRecord = {
   type: RecordType;
   content: string;
   nextVisit: string; // 다음 방문 예정일 (선택)
+  visitClosed?: boolean; // 예정이 완료/취소되어 더 이상 "예정"으로 보지 않음
   filters?: { name: string; prev: string }[]; // 필터교체 기록과 연결된 필터 (prev = 교체 전 교환일)
   entered?: boolean; // PC 프로그램에 입력 완료 표시
 };

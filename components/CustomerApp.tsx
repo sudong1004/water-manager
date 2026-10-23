@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
-import { balanceOf, emptyCustomer, todayStr } from "../lib/utils";
+import { balanceOf, emptyCustomer, pendingVisitRecord, todayStr } from "../lib/utils";
 import { api } from "../lib/api";
 import { USE_SUPABASE } from "../lib/supabase/env";
 import { browserClient } from "../lib/supabase/client";
@@ -136,6 +136,23 @@ export default function CustomerApp() {
     setRecords(rs);
     await syncFilters(old.customerId, rs, old);
   }
+  /** 방문 예정 처리: 완료(오늘 방문 이력 자동 기록) / 날짜 변경 / 취소 */
+  const [visitBusy, setVisitBusy] = useState(false);
+  async function visitAction(customerId: string, act: { type: "done" } | { type: "cancel" } | { type: "move"; date: string }) {
+    const src = pendingVisitRecord(records.filter((r) => r.customerId === customerId));
+    if (!src || visitBusy) return;
+    setVisitBusy(true);
+    try {
+      if (act.type === "done") {
+        const rec: ServiceRecord = await api("/api/records", { method: "POST", body: JSON.stringify({ customerId, date: todayStr(), type: "방문", content: "방문 완료", nextVisit: "" }) });
+        setRecords((l) => [rec, ...l]);
+      }
+      const upd: ServiceRecord = await api(`/api/records/${src.id}`, { method: "PUT", body: JSON.stringify(
+        act.type === "move" ? { ...src, nextVisit: act.date, visitClosed: false } : { ...src, visitClosed: true }) });
+      setRecords((l) => l.map((x) => (x.id === upd.id ? upd : x)));
+      setToast(act.type === "done" ? "방문 완료로 기록했습니다." : act.type === "cancel" ? "방문 예정을 취소했습니다." : `방문 예정일을 ${act.date}로 변경했습니다.`);
+    } catch (e) { setToast((e as Error).message); await load().catch(() => {}); } finally { setVisitBusy(false); }
+  }
   async function remove(c: Customer) {
     if (!confirm(`"${c.name}" 고객을 삭제할까요?\n수납·이력 기록도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
     await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "DELETE" });
@@ -173,7 +190,7 @@ export default function CustomerApp() {
         ) : <p className="py-24 text-center text-slate-400">불러오는 중…</p>
       ) : (
         <main>
-          {tab === "home" && <DashboardView customers={list} payments={payments} records={records} open={open} go={go} />}
+          {tab === "home" && <DashboardView customers={list} payments={payments} records={records} open={open} go={go} onVisit={visitAction} />}
           {tab === "customers" && <CustomersView key={segKey} customers={list} balances={balances} records={records} initialSeg={seg} open={open} onImport={() => setTab("import")} onNew={() => setMode({ type: "new" })} />}
           {tab === "map" && <MapView customers={list} balances={balances} open={open} reload={load} notify={setToast} />}
           {tab === "calendar" && <CalendarView customers={list} payments={payments} records={records} open={open} reload={load} notify={setToast} />}
@@ -205,7 +222,7 @@ export default function CustomerApp() {
                 <CustomerDetail key={current.id} c={current}
                   payments={payments.filter((p) => p.customerId === current.id)}
                   records={records.filter((r) => r.customerId === current.id)}
-                  notify={setToast} onRecordSaved={recordSaved} onRecordRemoved={recordRemoved}
+                  notify={setToast} onVisit={visitAction} onRecordSaved={recordSaved} onRecordRemoved={recordRemoved}
                   onPaymentSaved={(p) => setPayments((l) => (l.some((x) => x.id === p.id) ? l.map((x) => (x.id === p.id ? p : x)) : [p, ...l]))}
                   onPaymentRemoved={(id) => setPayments((l) => l.filter((x) => x.id !== id))}
                   onEdit={() => setMode({ type: "edit", id: current.id })}

@@ -1,18 +1,20 @@
 "use client";
 import { useState } from "react";
 import { RECORD_TYPES, type ServiceRecord } from "../lib/types";
-import { daysLeft, dueLabel, pendingVisit, todayStr } from "../lib/utils";
+import { daysLeft, dueLabel, pendingVisitRecord, todayStr } from "../lib/utils";
 import { api } from "../lib/api";
 
 const inp = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200";
 const ICON: Record<string, string> = { 방문: "🚗", 필터교체: "🔧", AS: "🛠", 상담: "💬", 민원: "⚠️", 특이사항: "📌" };
 
+export type VisitAct = (customerId: string, act: { type: "done" } | { type: "cancel" } | { type: "move"; date: string }) => Promise<void>;
+
 export default function RecordsTab({
-  customerId, records, notify, onSaved, onRemoved,
+  customerId, records, notify, onSaved, onRemoved, onVisit,
 }: {
   customerId: string; records: ServiceRecord[]; notify: (m: string) => void;
   onSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>;
-  onRemoved: (old: ServiceRecord) => Promise<void>;
+  onRemoved: (old: ServiceRecord) => Promise<void>; onVisit: VisitAct;
 }) {
   const [form, setForm] = useState<Partial<ServiceRecord> | null>(null);
   const [saving, setSaving] = useState(false);
@@ -21,7 +23,11 @@ export default function RecordsTab({
   const typeCount = new Map<string, number>();
   records.forEach((r) => typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1));
   const visible = ftype === "all" ? sorted : sorted.filter((r) => r.type === ftype);
-  const visit = pendingVisit(records);
+  const visitRec = pendingVisitRecord(records);
+  const visit = visitRec?.nextVisit ?? null;
+  const [moving, setMoving] = useState<string | null>(null);
+  const [vbusy, setVbusy] = useState(false);
+  const act = async (a: Parameters<VisitAct>[1]) => { setVbusy(true); try { await onVisit(customerId, a); setMoving(null); } finally { setVbusy(false); } };
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -30,8 +36,9 @@ export default function RecordsTab({
     setSaving(true);
     try {
       const old = form.id ? records.find((r) => r.id === form.id) : undefined;
+      const body = old && form.nextVisit !== old.nextVisit ? { ...form, visitClosed: false } : form; // 예정일을 바꾸면 다시 "예정"으로
       const saved: ServiceRecord = form.id
-        ? await api(`/api/records/${form.id}`, { method: "PUT", body: JSON.stringify(form) })
+        ? await api(`/api/records/${form.id}`, { method: "PUT", body: JSON.stringify(body) })
         : await api("/api/records", { method: "POST", body: JSON.stringify({ ...form, customerId }) });
       await onSaved(saved, old);
       notify("기록되었습니다."); setForm(null);
@@ -46,8 +53,23 @@ export default function RecordsTab({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 space-y-3 overflow-y-auto bg-slate-100 p-4">
         {visit && (
-          <div className="rounded-xl bg-violet-50 p-3 text-sm font-semibold text-violet-700 ring-1 ring-violet-200">
-            📅 다음 방문 예정 {visit} · {dueLabel(daysLeft(visit))}
+          <div className={`space-y-2 rounded-xl p-3 ring-1 ${daysLeft(visit) < 0 ? "bg-red-50 ring-red-200" : "bg-violet-50 ring-violet-200"}`}>
+            <div className={`text-sm font-semibold ${daysLeft(visit) < 0 ? "text-red-700" : "text-violet-700"}`}>
+              📅 다음 방문 예정 {visit} · {dueLabel(daysLeft(visit))}
+            </div>
+            {moving === null ? (
+              <div className="flex gap-2">
+                <button disabled={vbusy} onClick={() => act({ type: "done" })} className="flex-[2] rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white active:bg-emerald-700 disabled:opacity-60">✅ 방문 완료</button>
+                <button disabled={vbusy} onClick={() => setMoving(visit)} className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-700 disabled:opacity-60">📅 날짜 변경</button>
+                <button disabled={vbusy} onClick={() => confirm("방문 예정을 취소할까요?") && act({ type: "cancel" })} className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-500 disabled:opacity-60">✖ 취소</button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input type="date" value={moving} onChange={(e) => setMoving(e.target.value)} className={inp} />
+                <button disabled={vbusy || !moving} onClick={() => act({ type: "move", date: moving })} className="shrink-0 rounded-lg bg-sky-700 px-4 text-sm font-semibold text-white disabled:opacity-60">변경</button>
+                <button disabled={vbusy} onClick={() => setMoving(null)} className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-600">닫기</button>
+              </div>
+            )}
           </div>
         )}
         {form && (

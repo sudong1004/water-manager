@@ -1,4 +1,5 @@
 "use client";
+import type { VisitAct } from "./RecordsTab";
 import { useMemo, useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
 import { buildWorkItems, groupWork, TYPE_ICON } from "../lib/worklog";
@@ -113,10 +114,10 @@ function ActivityFeed({ customers, payments, records, open }: { customers: Custo
 }
 
 export default function DashboardView({
-  customers, payments, records, open, go,
+  customers, payments, records, open, go, onVisit,
 }: {
   customers: Customer[]; payments: Payment[]; records: ServiceRecord[];
-  open: (id: string) => void; go: (t: "customers" | "payments", f?: string) => void;
+  open: (id: string) => void; go: (t: "customers" | "payments", f?: string) => void; onVisit: VisitAct;
 }) {
   const month = thisMonth();
   const byCust = (id: string) => customers.find((c) => c.id === id);
@@ -164,11 +165,14 @@ export default function DashboardView({
       <ActivityFeed customers={customers} payments={payments} records={records} open={open} />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="📅 방문 예정">
+        <Card title={`📅 방문 예정${visits.some((x) => daysLeft(x.v) < 0) ? ` · 지남 ${visits.filter((x) => daysLeft(x.v) < 0).length}` : ""}`}>
           {visits.length === 0 ? <Empty t="예정된 방문이 없습니다. (고객 이력에서 다음 방문일을 정하면 여기 표시)" /> : (
-            <ul className="divide-y divide-slate-100">{visits.slice(0, 6).map(({ c, v }) => (
+            <ul className="divide-y divide-slate-100">{visits.slice(0, 8).map(({ c, v }) => (
               <Row key={c.id} id={c.id} name={c.name} sub={`${v} · ${regionOf(c).sigungu} ${regionOf(c).dong}`}
-                badge={<span className={`rounded-full px-2.5 py-1 text-xs font-bold ${dueTone(daysLeft(v))}`}>{dueLabel(daysLeft(v))}</span>} />
+                badge={<>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${dueTone(daysLeft(v))}`}>{dueLabel(daysLeft(v))}</span>
+                  <span role="button" onClick={(e) => { e.stopPropagation(); onVisit(c.id, { type: "done" }); }} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white active:bg-emerald-700">완료</span>
+                </>} />
             ))}</ul>
           )}
         </Card>
