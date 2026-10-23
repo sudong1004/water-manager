@@ -6,6 +6,7 @@ export type FilterItem = {
 };
 
 export type Customer = {
+  rev?: number; // 저장할 때마다 서버가 올리는 번호 (동시 수정 충돌 감지용)
   id: string; // 관리번호
   regDate: string; // 등록일자
   manager: string; // 담당자

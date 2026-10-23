@@ -39,8 +39,26 @@ export default function ImportView({ reload, notify }: { reload: () => Promise<v
   const todo = pv ? pv.summary.new + pv.summary.update : 0;
   const items = pv?.items.filter((i) => show === "all" || i.status === show) ?? [];
 
+  const [lastBackup, setLastBackup] = useState<string | null>(null);
+  useEffect(() => { try { setLastBackup(localStorage.getItem("lastBackup")); } catch { /* 저장소 사용 불가 */ } }, []);
+  function markBackup() { const d = new Date().toISOString().slice(0, 10); try { localStorage.setItem("lastBackup", d); } catch { /* 무시 */ } setLastBackup(d); }
+  const backupAge = lastBackup ? Math.round((Date.now() - new Date(lastBackup).getTime()) / 86400000) : null;
+
   return (
     <div className="space-y-4 px-4 pt-4">
+      <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        <h2 className="text-sm font-bold text-sky-800">💾 전체 백업</h2>
+        <p className="mt-1 text-sm text-slate-500">고객·수납·이력 전체를 파일로 받아 둡니다. 실수로 지우거나 문제가 생길 때를 대비해 <b>주기적으로(예: 매주)</b> 받아 두세요.</p>
+        <p className={`mt-1 text-xs ${backupAge === null || backupAge > 14 ? "font-semibold text-red-600" : "text-slate-400"}`}>
+          {lastBackup ? `마지막 백업: ${lastBackup} (${backupAge === 0 ? "오늘" : `${backupAge}일 전`})` : "이 기기에서 백업한 기록이 없습니다."}
+        </p>
+        <div className="mt-3 flex gap-3">
+          <a href="/api/backup?format=json" download onClick={markBackup} className="flex-1 rounded-xl bg-sky-700 py-3 text-center font-semibold text-white active:bg-sky-800">백업 파일 (JSON)</a>
+          <a href="/api/backup?format=xlsx" download onClick={markBackup} className="flex-1 rounded-xl border border-sky-300 bg-sky-50 py-3 text-center font-semibold text-sky-800 active:bg-sky-100">엑셀로 보기</a>
+        </div>
+        <p className="mt-2 text-xs text-slate-400">JSON은 모든 정보가 들어 있는 복구용, 엑셀은 열어서 보기용입니다.</p>
+      </section>
+
       <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-sm font-bold text-sky-800">월별 엑셀 가져오기</h2>
         <p className="mt-1 text-sm text-slate-500">기존 프로그램에서 받은 .xls / .xlsx 파일을 올리면 <b>관리번호</b>로 기존 고객과 비교합니다. 반영 전에 미리보기로 확인하고, 직접 기록한 <b>수납·이력·특이사항은 그대로 유지</b>됩니다.</p>
