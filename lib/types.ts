@@ -2,6 +2,7 @@ export type FilterItem = {
   name: string;
   cycleDays: number; // 교환 주기(일)
   lastChange: string; // YYYY-MM-DD
+  dueOverride?: string; // 교환 예정일 직접 지정 (없으면 최근 교환일 + 주기). 교환 완료 시 해제
 };
 
 export type Customer = {

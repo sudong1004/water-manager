@@ -118,7 +118,7 @@ export default function CustomerApp() {
       const last = dates.length ? dates.sort().at(-1)! : prev ?? f.lastChange;
       if (last === f.lastChange) return f;
       changed = true;
-      return { ...f, lastChange: last };
+      return { ...f, lastChange: last, dueOverride: undefined };
     });
     if (!changed) return;
     try {
@@ -153,6 +153,15 @@ export default function CustomerApp() {
       setRecords((l) => l.map((x) => (x.id === upd.id ? upd : x)));
       setToast(act.type === "done" ? "방문 완료로 기록했습니다." : act.type === "cancel" ? "방문 예정을 취소했습니다." : `방문 예정일을 ${act.date}로 변경했습니다.`);
     } catch (e) { setToast((e as Error).message); await load().catch(() => {}); } finally { setVisitBusy(false); }
+  }
+  /** 필터의 교환 예정일을 직접 지정(또는 해제). 최근 교환일·이력은 그대로 둔다 */
+  async function setFilterDue(c: Customer, idx: number, date: string | null) {
+    const filters = c.filters.map((f, j) => (j === idx ? { ...f, dueOverride: date || undefined } : f));
+    try {
+      const next: Customer = await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...c, filters }) });
+      setCustomers((l) => (l ?? []).map((x) => (x.id === next.id ? next : x)));
+      setToast(date ? `${c.filters[idx].name} 교환 예정일을 ${date}로 지정했습니다.` : `${c.filters[idx].name} 교환 예정일 지정을 해제했습니다.`);
+    } catch (e) { setToast((e as Error).message); throw e; }
   }
   async function remove(c: Customer) {
     if (!confirm(`"${c.name}" 고객을 삭제할까요?\n수납·이력 기록도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
@@ -225,7 +234,7 @@ export default function CustomerApp() {
                 <CustomerDetail key={current.id} c={current}
                   payments={payments.filter((p) => p.customerId === current.id)}
                   records={records.filter((r) => r.customerId === current.id)}
-                  notify={setToast} onVisit={visitAction} onRecordSaved={recordSaved} onRecordRemoved={recordRemoved}
+                  notify={setToast} onVisit={visitAction} onFilterDue={(i, d) => setFilterDue(current, i, d)} onRecordSaved={recordSaved} onRecordRemoved={recordRemoved}
                   onPaymentSaved={(p) => setPayments((l) => (l.some((x) => x.id === p.id) ? l.map((x) => (x.id === p.id ? p : x)) : [p, ...l]))}
                   onPaymentRemoved={(id) => setPayments((l) => l.filter((x) => x.id !== id))}
                   onEdit={() => setMode({ type: "edit", id: current.id })}

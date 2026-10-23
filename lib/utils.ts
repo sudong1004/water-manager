@@ -14,7 +14,7 @@ export const todayStr = () => {
 };
 
 export const addDays = (d: string, n: number) => fmt(toUTC(d) + n * DAY);
-export const dueDate = (f: FilterItem) => addDays(f.lastChange, f.cycleDays);
+export const dueDate = (f: FilterItem) => f.dueOverride || addDays(f.lastChange, f.cycleDays);
 /** 오늘 기준 남은 일수 (음수 = 지연) */
 export const daysLeft = (date: string, today = todayStr()) => Math.round((toUTC(date) - toUTC(today)) / DAY);
 

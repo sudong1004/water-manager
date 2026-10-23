@@ -19,16 +19,17 @@ function Row({ label, value }: { label: string; value?: string | number }) {
 }
 
 export default function CustomerDetail({
-  c, payments, records, onEdit, onDelete, onReplace, onVisit, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
+  c, payments, records, onEdit, onDelete, onReplace, onVisit, onFilterDue, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
 }: {
   c: Customer; payments: Payment[]; records: ServiceRecord[]; onEdit: () => void; onDelete: () => void;
-  onReplace: (idx: number[], date: string) => Promise<void>; onVisit: VisitAct; onRecordSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>; onRecordRemoved: (old: ServiceRecord) => Promise<void>;
+  onReplace: (idx: number[], date: string) => Promise<void>; onVisit: VisitAct; onFilterDue: (idx: number, date: string | null) => Promise<void>; onRecordSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>; onRecordRemoved: (old: ServiceRecord) => Promise<void>;
   onPaymentSaved: (p: Payment) => void; onPaymentRemoved: (id: string) => void; notify: (m: string) => void;
 }) {
   const [tab, setTab] = useState<"info" | "pay" | "rec">("info");
   const [rep, setRep] = useState<{ target: number[]; date: string } | null>(null);
   const [repBusy, setRepBusy] = useState(false);
   const [repErr, setRepErr] = useState("");
+  const [dueEdit, setDueEdit] = useState<{ i: number; date: string } | null>(null);
   const repBox = useRef<HTMLDivElement>(null);
   // 교환 입력창이 열리면 화면 안으로 스크롤 (목록 아래쪽 버튼을 눌렀을 때 창이 안 보이는 문제 방지)
   useEffect(() => { if (rep) repBox.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [rep?.target.join(",")]);
@@ -140,8 +141,17 @@ export default function CustomerDetail({
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${dueTone(left)}`}>{dueLabel(left)}</span>
                     </div>
                     <div className="mt-0.5 text-xs text-slate-500">
-                      주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange} · 예정 {d}
+                      주기 {cycleLabel(f.cycleDays)} · 최근 {f.lastChange} · 예정 {d}{f.dueOverride && <b className="ml-1 text-violet-600">(직접 지정)</b>}
+                      <button onClick={() => setDueEdit({ i, date: d })} className="ml-2 text-sky-700 underline">예정일 변경</button>
                     </div>
+                    {dueEdit?.i === i && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <input type="date" value={dueEdit.date} onChange={(e) => setDueEdit({ i, date: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+                        <button disabled={!dueEdit.date} onClick={() => onFilterDue(i, dueEdit.date).then(() => setDueEdit(null), () => {})} className="rounded-lg bg-sky-700 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60">저장</button>
+                        {f.dueOverride && <button onClick={() => onFilterDue(i, null).then(() => setDueEdit(null), () => {})} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600">지정 해제</button>}
+                        <button onClick={() => setDueEdit(null)} className="px-2 py-1.5 text-sm text-slate-500">닫기</button>
+                      </div>
+                    )}
                   </div>
                   {f.lastChange >= todayStr() ? (
                     <button onClick={() => { setTab("rec"); notify("오늘 교환 처리된 필터입니다. 날짜가 틀렸다면 '필터교체' 기록의 [수정]에서 날짜를 바꾸세요."); }}
