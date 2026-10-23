@@ -53,7 +53,8 @@ export type Payment = {
   entered?: boolean; // PC 프로그램에 입력 완료 표시
 };
 
-export const RECORD_TYPES = ["방문", "필터교체", "AS", "상담", "민원", "특이사항"] as const;
+export const RECORD_TYPES = ["방문", "방문예약", "필터교체", "AS", "상담", "민원", "특이사항"] as const;
+/** "방문"은 실제로 방문한 것만, 통화·일정 조율은 "방문예약"/"상담"으로 기록 */
 export type RecordType = (typeof RECORD_TYPES)[number];
 
 export type ServiceRecord = {

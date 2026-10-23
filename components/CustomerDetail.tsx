@@ -19,16 +19,23 @@ function Row({ label, value }: { label: string; value?: string | number }) {
 }
 
 export default function CustomerDetail({
-  c, payments, records, onEdit, onDelete, onReplace, onVisit, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
+  c, payments, records, onEdit, onDelete, onReplace, onMemo, onVisit, onRecordSaved, onRecordRemoved, onPaymentSaved, onPaymentRemoved, notify,
 }: {
   c: Customer; payments: Payment[]; records: ServiceRecord[]; onEdit: () => void; onDelete: () => void;
-  onReplace: (idx: number[], date: string) => Promise<void>; onVisit: VisitAct; onRecordSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>; onRecordRemoved: (old: ServiceRecord) => Promise<void>;
+  onReplace: (idx: number[], date: string) => Promise<void>; onMemo: (text: string) => Promise<void>; onVisit: VisitAct; onRecordSaved: (saved: ServiceRecord, old?: ServiceRecord) => Promise<void>; onRecordRemoved: (old: ServiceRecord) => Promise<void>;
   onPaymentSaved: (p: Payment) => void; onPaymentRemoved: (id: string) => void; notify: (m: string) => void;
 }) {
   const [tab, setTab] = useState<"info" | "pay" | "rec">("info");
   const [rep, setRep] = useState<{ target: number[]; date: string } | null>(null);
   const [repBusy, setRepBusy] = useState(false);
   const [repErr, setRepErr] = useState("");
+  const [memoDraft, setMemoDraft] = useState<string | null>(null);
+  const [memoBusy, setMemoBusy] = useState(false);
+  async function saveMemo() {
+    if (memoDraft === null || memoBusy) return;
+    setMemoBusy(true);
+    try { await onMemo(memoDraft); setMemoDraft(null); } catch (e) { notify((e as Error).message); } finally { setMemoBusy(false); }
+  }
   const repBox = useRef<HTMLDivElement>(null);
   // 교환 입력창이 열리면 화면 안으로 스크롤 (목록 아래쪽 버튼을 눌렀을 때 창이 안 보이는 문제 방지)
   useEffect(() => { if (rep) repBox.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [rep?.target.join(",")]);
@@ -171,9 +178,23 @@ export default function CustomerDetail({
           </ul>
         </section>
 
-        {(c.note1 || c.note2 || c.ref1 || c.ref2 || c.memo) && (
+        {(
           <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <h3 className="mb-1 text-sm font-semibold text-sky-800">메모</h3>
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-sky-800">메모</h3>
+              {memoDraft === null && <button onClick={() => setMemoDraft("")} className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 active:bg-sky-100">+ 메모 추가</button>}
+            </div>
+            {memoDraft !== null && (
+              <div className="mb-2 space-y-2 rounded-xl bg-sky-50 p-3 ring-1 ring-sky-200">
+                <textarea autoFocus rows={3} value={memoDraft} onChange={(e) => setMemoDraft(e.target.value)} placeholder="특이사항을 적으면 날짜와 함께 메모 맨 아래에 추가됩니다"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200" />
+                <div className="flex gap-2">
+                  <button onClick={() => setMemoDraft(null)} disabled={memoBusy} className="flex-1 rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-600">취소</button>
+                  <button disabled={memoBusy || !memoDraft.trim()} onClick={saveMemo} className="flex-[2] rounded-xl bg-sky-700 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{memoBusy ? "저장 중…" : "메모에 추가"}</button>
+                </div>
+              </div>
+            )}
+            {!(c.note1 || c.note2 || c.ref1 || c.ref2 || c.memo) && memoDraft === null && <p className="text-sm text-slate-400">메모가 없습니다.</p>}
             <dl className="divide-y divide-slate-100">
               <Row label="비고 1" value={c.note1} />
               <Row label="비고 2" value={c.note2} />

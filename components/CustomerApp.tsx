@@ -151,22 +151,26 @@ export default function CustomerApp() {
     setRecords(rs);
     await syncFilters(old.customerId, rs, old);
   }
-  /** 방문 예정 처리: 완료(오늘 방문 이력 자동 기록) / 날짜 변경 / 취소 */
+  /** 방문 예정 처리: 완료 처리 / 취소 (이력은 만들지 않음 — 교체했다면 필터교체 이력이 남는다) */
   const [visitBusy, setVisitBusy] = useState(false);
   async function visitAction(customerId: string, act: { type: "done" } | { type: "cancel" }) {
     const src = pendingVisitRecord(records.filter((r) => r.customerId === customerId));
     if (!src || visitBusy) return;
     setVisitBusy(true);
     try {
-      if (act.type === "done") {
-        const rec: ServiceRecord = await api("/api/records", { method: "POST", body: JSON.stringify({ customerId, date: todayStr(), type: "방문", content: "방문 완료", nextVisit: "" }) });
-        setRecords((l) => [rec, ...l]);
-      }
       const upd: ServiceRecord = await api(`/api/records/${src.id}`, { method: "PUT", body: JSON.stringify(
 { ...src, visitClosed: true }) });
       setRecords((l) => l.map((x) => (x.id === upd.id ? upd : x)));
-      setToast(act.type === "done" ? "방문 완료로 기록했습니다." : "방문 예정을 취소했습니다.");
+      setToast(act.type === "done" ? "방문 예정을 완료 처리했습니다." : "방문 예정을 취소했습니다.");
     } catch (e) { setToast((e as Error).message); await load().catch(() => {}); } finally { setVisitBusy(false); }
+  }
+  /** 특이사항 메모: 메모사항 맨 아래에 "[MM-DD] 내용" 한 줄 추가 */
+  async function addMemo(c: Customer, text: string) {
+    const line = `[${todayStr().slice(5)}] ${text.trim()}`;
+    const memo = c.memo?.trim() ? `${c.memo.trimEnd()}\n${line}` : line;
+    const next: Customer = await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...c, memo }) });
+    setCustomers((l) => (l ?? []).map((x) => (x.id === next.id ? next : x)));
+    setToast("메모에 추가했습니다.");
   }
   async function remove(c: Customer) {
     if (!confirm(`"${c.name}" 고객을 삭제할까요?\n수납·이력 기록도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
@@ -239,7 +243,7 @@ export default function CustomerApp() {
                 <CustomerDetail key={current.id} c={current}
                   payments={payments.filter((p) => p.customerId === current.id)}
                   records={records.filter((r) => r.customerId === current.id)}
-                  notify={setToast} onVisit={visitAction} onRecordSaved={recordSaved} onRecordRemoved={recordRemoved}
+                  notify={setToast} onMemo={(t) => addMemo(current, t)} onVisit={visitAction} onRecordSaved={recordSaved} onRecordRemoved={recordRemoved}
                   onPaymentSaved={(p) => setPayments((l) => (l.some((x) => x.id === p.id) ? l.map((x) => (x.id === p.id ? p : x)) : [p, ...l]))}
                   onPaymentRemoved={(id) => setPayments((l) => l.filter((x) => x.id !== id))}
                   onEdit={() => setMode({ type: "edit", id: current.id })}

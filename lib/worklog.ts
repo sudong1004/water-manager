@@ -26,6 +26,7 @@ export function buildWorkItems(customers: Customer[], payments: Payment[], recor
   const byId = new Map(customers.map((c) => [c.id, c]));
   const items: WorkItem[] = [];
   for (const r of records) {
+    if (r.type === "방문예약") continue; // 일정 메모는 한 일 내역에서 제외
     const c = byId.get(r.customerId);
     let filters: string[] = [];
     if (r.type === "필터교체") {

@@ -5,7 +5,7 @@ import { daysLeft, dueLabel, pendingVisitRecord, todayStr } from "../lib/utils";
 import { api } from "../lib/api";
 
 const inp = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200";
-const ICON: Record<string, string> = { 방문: "🚗", 필터교체: "🔧", AS: "🛠", 상담: "💬", 민원: "⚠️", 특이사항: "📌" };
+const ICON: Record<string, string> = { 방문: "🚗", 방문예약: "📅", 필터교체: "🔧", AS: "🛠", 상담: "💬", 민원: "⚠️", 특이사항: "📌" };
 
 export type VisitAct = (customerId: string, act: { type: "done" } | { type: "cancel" }) => Promise<void>;
 
@@ -31,6 +31,7 @@ export default function RecordsTab({
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form) return;
+    if (form.type === "방문예약" && !form.nextVisit) return notify("방문 예정일을 입력해 주세요.");
     if (!form.content?.trim() && !form.nextVisit) return notify("내용을 입력해 주세요.");
     setSaving(true);
     try {
@@ -57,7 +58,7 @@ export default function RecordsTab({
               📅 다음 방문 예정 {visit} · {dueLabel(daysLeft(visit))}
             </div>
             <div className="flex gap-2">
-              <button disabled={vbusy} onClick={() => act({ type: "done" })} className="flex-[2] rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white active:bg-emerald-700 disabled:opacity-60">✅ 방문 완료</button>
+              <button disabled={vbusy} onClick={() => act({ type: "done" })} className="flex-[2] rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white active:bg-emerald-700 disabled:opacity-60">✅ 완료 처리</button>
               <button disabled={vbusy} onClick={() => confirm("방문 예정을 취소할까요?") && act({ type: "cancel" })} className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-500 disabled:opacity-60">✖ 취소</button>
             </div>
           </div>
@@ -65,7 +66,7 @@ export default function RecordsTab({
         {form && (
           <form onSubmit={save} className="space-y-3 rounded-xl bg-white p-4 shadow-sm ring-2 ring-sky-300">
             <div className="flex flex-wrap gap-1.5">
-              {RECORD_TYPES.map((t) => (
+              {RECORD_TYPES.filter((t) => (t !== "방문" && t !== "특이사항") || form.type === t).map((t) => ( // 새 이력에서는 "방문"·"특이사항"을 고르지 않음 (특이사항은 정보 탭 메모로). 기존 이력 수정 시에만 표시
                 <button type="button" key={t} onClick={() => setForm({ ...form, type: t })}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium ${form.type === t ? "bg-sky-700 text-white" : "bg-slate-100 text-slate-600"}`}>{ICON[t]} {t}</button>
               ))}
@@ -73,10 +74,12 @@ export default function RecordsTab({
             <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
               <label className="block"><span className="mb-1 block text-xs text-slate-500">날짜</span>
                 <input className={inp} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
-              <label className="block"><span className="mb-1 block text-xs text-slate-500">다음 방문 예약 (선택)</span>
-                <input className={inp} type="date" value={form.nextVisit ?? ""} onChange={(e) => setForm({ ...form, nextVisit: e.target.value })} /></label>
-              <label className="block min-[400px]:col-span-2"><span className="mb-1 block text-xs text-slate-500">내용 · 특이사항</span>
-                <textarea className={inp} rows={3} value={form.content ?? ""} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder="예) 세디·카본 교체, 다음엔 오후 방문 요청" /></label>
+              {(form.type === "방문예약" || form.nextVisit) && (
+                <label className="block"><span className="mb-1 block text-xs text-slate-500">방문 예정일{form.type === "방문예약" ? "" : " (선택)"}</span>
+                  <input className={inp} type="date" value={form.nextVisit ?? ""} onChange={(e) => setForm({ ...form, nextVisit: e.target.value })} /></label>
+              )}
+              <label className="block min-[400px]:col-span-2"><span className="mb-1 block text-xs text-slate-500">내용</span>
+                <textarea className={inp} rows={3} value={form.content ?? ""} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder={form.type === "방문예약" ? "예) 전화 통화, 목요일 저녁 6시 가능" : "예) 세디·카본 교체, 다음엔 오후 방문 요청"} /></label>
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={() => setForm(null)} className="flex-1 rounded-xl border border-slate-300 py-2.5 font-medium text-slate-600">취소</button>
@@ -113,7 +116,10 @@ export default function RecordsTab({
       </div>
       {!form && (
         <div className="border-t border-slate-200 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <button onClick={() => setForm({ date: todayStr(), type: "방문", content: "", nextVisit: "" })} className="w-full rounded-xl bg-sky-700 py-3 font-semibold text-white active:bg-sky-800">+ 이력 · 특이사항 기록</button>
+          <div className="flex gap-2">
+            <button onClick={() => setForm({ date: todayStr(), type: "방문예약", content: "", nextVisit: "" })} className="flex-1 rounded-xl border border-violet-300 bg-violet-50 py-3 font-semibold text-violet-700 active:bg-violet-100">📅 방문 예약</button>
+            <button onClick={() => setForm({ date: todayStr(), type: "상담", content: "", nextVisit: "" })} className="flex-[1.4] rounded-xl bg-sky-700 py-3 font-semibold text-white active:bg-sky-800">+ 이력 기록</button>
+          </div>
         </div>
       )}
     </div>

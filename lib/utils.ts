@@ -100,7 +100,7 @@ const VISIT_LIKE = ["방문", "AS", "필터교체"];
 export function pendingVisitRecord(records: ServiceRecord[]): ServiceRecord | null {
   const r = records.filter((x) => x.nextVisit).sort((a, b) => (b.date + b.nextVisit).localeCompare(a.date + a.nextVisit))[0];
   if (!r || r.visitClosed) return null;
-  const done = records.some((x) => x !== r && ((VISIT_LIKE.includes(x.type) && x.date > r.date) || x.date >= r.nextVisit));
+  const done = records.some((x) => x !== r && VISIT_LIKE.includes(x.type) && (x.date > r.date || x.date >= r.nextVisit)); // 통화·메모(상담/방문예약)는 방문으로 치지 않음
   return done ? null : r;
 }
 export const pendingVisit = (records: ServiceRecord[]): string | null => pendingVisitRecord(records)?.nextVisit ?? null;

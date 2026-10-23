@@ -9,7 +9,7 @@ import { api } from "../lib/api";
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 const pad = (n: number) => String(n).padStart(2, "0");
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
-const ALL_TYPES = [...RECORD_TYPES, "수납", "청구"] as string[];
+const ALL_TYPES = [...RECORD_TYPES.filter((t) => t !== "방문예약"), "수납", "청구"] as string[]; // 방문예약은 한 일이 아니라 일정 메모
 
 function dayTitle(d: string) {
   const [y, m, dd] = d.split("-").map(Number);
