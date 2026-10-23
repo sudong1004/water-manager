@@ -20,7 +20,7 @@ export async function POST(req: Request, { params }: Ctx) {
     if (!c) return NextResponse.json({ error: "고객을 찾을 수 없습니다." }, { status: 404 });
     const targets = c.filters.filter((f) => names.includes(f.name) && f.lastChange < date);
     if (!targets.length) return NextResponse.json({ error: "이미 같은 날짜 이후에 교환 기록이 있습니다." }, { status: 409 });
-    const next = { ...c, filters: c.filters.map((f) => (targets.includes(f) ? { ...f, lastChange: date, nextDate: undefined } : f)) };
+    const next = { ...c, rev: (c.rev ?? 0) + 1, filters: c.filters.map((f) => (targets.includes(f) ? { ...f, lastChange: date, nextDate: undefined } : f)) };
     const record: ServiceRecord = {
       id: newId(), customerId: id, date, type: "필터교체", content: `${targets.map((f) => f.name).join(", ")} 교체`, nextVisit: "",
       filters: targets.map((f) => ({ name: f.name, prev: f.lastChange })),

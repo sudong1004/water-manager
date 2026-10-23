@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Customer, Payment, ServiceRecord } from "../lib/types";
 import { balanceOf, emptyCustomer, pendingVisitRecord, todayStr } from "../lib/utils";
 import { api } from "../lib/api";
@@ -28,6 +28,8 @@ const TABS: { k: Tab; icon: string; label: string }[] = [
 
 export default function CustomerApp() {
   const [customers, setCustomers] = useState<Customer[] | null>(null);
+  const customersRef = useRef(customers);
+  customersRef.current = customers;
   const [payments, setPayments] = useState<Payment[]>([]);
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [tab, setTab] = useState<Tab>("home");
@@ -106,12 +108,13 @@ export default function CustomerApp() {
       setToast(`${record.filters?.map((f) => f.name).join(", ")} 교환 완료 (${date.slice(5)})`);
       setUndo(() => async () => {
         const names = new Set(record.filters?.map((f) => f.name));
-        const restored = customer.filters.map((f) => {
+        const latest = customersRef.current?.find((x) => x.id === c.id) ?? customer; // 그사이 바뀐 최신 상태 기준으로 되돌림
+        const restored = latest.filters.map((f) => {
           const was = c.filters.find((x) => x.name === f.name);
           return names.has(f.name) && was ? { ...f, lastChange: was.lastChange, nextDate: was.nextDate } : f;
         });
         await api(`/api/records/${record.id}`, { method: "DELETE" });
-        const back: Customer = await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...customer, filters: restored }) });
+        const back: Customer = await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "PUT", body: JSON.stringify({ ...latest, filters: restored }) });
         setRecords((l) => l.filter((x) => x.id !== record.id));
         setCustomers((l) => (l ?? []).map((x) => (x.id === back.id ? back : x)));
         setUndo(null); setToast("교환 완료를 취소했습니다.");
