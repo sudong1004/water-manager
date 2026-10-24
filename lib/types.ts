@@ -6,6 +6,7 @@ export type FilterItem = {
 };
 
 export type Customer = {
+  deletedAt?: string; // 휴지통으로 보낸 시각 (있으면 목록에서 숨김, 수납·이력은 그대로 보관)
   rev?: number; // 저장할 때마다 서버가 올리는 번호 (동시 수정 충돌 감지용)
   id: string; // 관리번호
   regDate: string; // 등록일자

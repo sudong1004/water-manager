@@ -130,12 +130,12 @@ export default function CustomerForm({
 
         {!isNew && onDelete && (
           <section className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-            <h3 className="text-sm font-semibold text-red-700">고객 삭제</h3>
-            <p className="mt-1 text-xs text-slate-500">수납·이력 기록도 함께 삭제되며 되돌릴 수 없습니다. 삭제 전에 📥 가져오기 화면에서 백업을 받아 두세요. 삭제하려면 고객명 <b>{initial.name}</b> 을(를) 아래에 똑같이 입력하세요.</p>
+            <h3 className="text-sm font-semibold text-red-700">고객 삭제 (휴지통으로 이동)</h3>
+            <p className="mt-1 text-xs text-slate-500">목록에서 사라지고 휴지통으로 이동합니다. 수납·이력은 보관되며 휴지통에서 복구할 수 있습니다. 고객명 <b>{initial.name}</b> 을(를) 아래에 똑같이 입력하세요.</p>
             <input className={`${inputCls} mt-2`} value={delName} onChange={(e) => setDelName(e.target.value)} placeholder="고객명 입력" />
             <button type="button" disabled={deleting || delName.trim() !== initial.name.trim()}
               onClick={async () => { setDeleting(true); setErr(""); try { await onDelete(); } catch (e) { setErr((e as Error).message); setDeleting(false); } }}
-              className="mt-2 w-full rounded-xl bg-red-600 py-3 font-semibold text-white disabled:opacity-40 active:bg-red-700">{deleting ? "삭제 중…" : "이 고객 삭제"}</button>
+              className="mt-2 w-full rounded-xl bg-red-600 py-3 font-semibold text-white disabled:opacity-40 active:bg-red-700">{deleting ? "이동 중…" : "휴지통으로 이동"}</button>
           </section>
         )}
       </div>

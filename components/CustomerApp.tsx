@@ -14,8 +14,9 @@ import ImportView from "./ImportView";
 import MapView from "./MapView";
 import CalendarView from "./CalendarView";
 import CheckView from "./CheckView";
+import TrashView from "./TrashView";
 
-type Tab = "home" | "customers" | "map" | "calendar" | "payments" | "import" | "check";
+type Tab = "home" | "customers" | "map" | "calendar" | "payments" | "import" | "check" | "trash";
 type Mode = { type: "view"; id: string } | { type: "edit"; id: string } | { type: "new" } | null;
 
 const TABS: { k: Tab; icon: string; label: string }[] = [
@@ -28,6 +29,7 @@ const TABS: { k: Tab; icon: string; label: string }[] = [
 
 export default function CustomerApp() {
   const [customers, setCustomers] = useState<Customer[] | null>(null);
+  const [trash, setTrash] = useState<Customer[]>([]);
   const customersRef = useRef(customers);
   customersRef.current = customers;
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -50,8 +52,12 @@ export default function CustomerApp() {
 
   const [loadErr, setLoadErr] = useState("");
   const load = useCallback(async () => {
-    const [c, p, r] = await Promise.all([api("/api/customers"), api("/api/payments"), api("/api/records")]);
-    setCustomers(c); setPayments(p); setRecords(r); setLoadErr("");
+    const [c, p, r]: [Customer[], Payment[], ServiceRecord[]] = await Promise.all([api("/api/customers"), api("/api/payments"), api("/api/records")]);
+    // 휴지통 고객은 목록에서 빼고, 그 고객의 수납·이력도 합계/달력에서 제외(복구하면 다시 나타남)
+    const active = c.filter((x) => !x.deletedAt);
+    const ids = new Set(active.map((x) => x.id));
+    setCustomers(active); setTrash(c.filter((x) => x.deletedAt));
+    setPayments(p.filter((x) => ids.has(x.customerId))); setRecords(r.filter((x) => ids.has(x.customerId))); setLoadErr("");
   }, []);
   const [refreshing, setRefreshing] = useState(false);
   async function refresh() {
@@ -187,7 +193,17 @@ export default function CustomerApp() {
   }
   async function remove(c: Customer) {
     await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "DELETE" });
-    setToast("삭제되었습니다."); setMode(null); await load();
+    setMode(null); await load();
+    setToast(`"${c.name}" 고객을 휴지통으로 이동했습니다.`);
+    setUndo(() => async () => { await api(`/api/customers/${encodeURIComponent(c.id)}/restore`, { method: "POST" }); await load(); setUndo(null); setToast("삭제를 취소했습니다."); });
+  }
+  async function restoreCustomer(c: Customer) {
+    await api(`/api/customers/${encodeURIComponent(c.id)}/restore`, { method: "POST" });
+    await load(); setToast(`"${c.name}" 고객을 복구했습니다.`);
+  }
+  async function purgeCustomer(c: Customer) {
+    await api(`/api/customers/${encodeURIComponent(c.id)}?permanent=1`, { method: "DELETE" });
+    await load(); setToast(`"${c.name}" 고객을 영구 삭제했습니다.`);
   }
   function go(t: "customers" | "payments", f?: string) {
     if (t === "customers") { setSeg(f === "overdue" ? "overdue" : "all"); setSegKey((k) => k + 1); }
@@ -224,10 +240,11 @@ export default function CustomerApp() {
       ) : (
         <main>
           {tab === "home" && <DashboardView customers={list} payments={payments} records={records} open={open} go={go} onVisit={visitAction} onBackup={() => setTab("import")} />}
-          {tab === "customers" && <CustomersView key={segKey} customers={list} balances={balances} records={records} initialSeg={seg} open={open} onImport={() => setTab("import")} onNew={() => setMode({ type: "new" })} />}
+          {tab === "customers" && <CustomersView key={segKey} customers={list} balances={balances} records={records} initialSeg={seg} open={open} trashCount={trash.length} onTrash={() => setTab("trash")} onImport={() => setTab("import")} onNew={() => setMode({ type: "new" })} />}
           {tab === "map" && <MapView customers={list} balances={balances} open={open} reload={load} notify={setToast} />}
           {tab === "calendar" && <CalendarView customers={list} payments={payments} records={records} open={open} reload={load} notify={setToast} />}
           {tab === "payments" && <PaymentsView customers={list} payments={payments} open={open} />}
+          {tab === "trash" && <TrashView trash={trash} onRestore={restoreCustomer} onPurge={purgeCustomer} notify={setToast} />}
           {tab === "check" && <CheckView customers={list} records={records} open={open} />}
           {tab === "import" && <ImportView reload={load} notify={setToast} />}
         </main>

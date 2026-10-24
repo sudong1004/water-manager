@@ -10,10 +10,10 @@ type Seg = "all" | "overdue" | "soon" | "ok";
 type Sort = "due" | "region" | "name" | "recent";
 
 export default function CustomersView({
-  customers, balances, records, initialSeg, open, onImport, onNew,
+  customers, balances, records, initialSeg, open, onImport, onNew, trashCount, onTrash,
 }: {
   customers: Customer[]; balances: Map<string, number>; records: ServiceRecord[];
-  initialSeg: Seg; open: (id: string) => void; onImport: () => void; onNew: () => void;
+  initialSeg: Seg; open: (id: string) => void; onImport: () => void; onNew: () => void; trashCount: number; onTrash: () => void;
 }) {
   const [q, setQ] = useState("");
   const [seg, setSeg] = useState<Seg>(initialSeg);
@@ -119,6 +119,7 @@ export default function CustomersView({
                 <div className="absolute right-0 z-20 mt-1 w-40 overflow-hidden rounded-xl bg-white text-sm shadow-lg ring-1 ring-slate-200">
                   <button onClick={() => { setMenu(false); download(); }} className="block w-full px-4 py-3 text-left text-slate-700 active:bg-slate-100">📄 CSV 내려받기</button>
                   <button onClick={() => { setMenu(false); onImport(); }} className="block w-full border-t border-slate-100 px-4 py-3 text-left text-slate-700 active:bg-slate-100">📥 가져오기 · 백업</button>
+                  <button onClick={() => { setMenu(false); onTrash(); }} className="block w-full border-t border-slate-100 px-4 py-3 text-left text-slate-700 active:bg-slate-100">🗑 휴지통{trashCount > 0 ? ` (${trashCount})` : ""}</button>
                 </div>
               </>
             )}

@@ -28,10 +28,19 @@ export async function PUT(req: Request, { params }: Ctx) {
   }
 }
 
-export async function DELETE(_: Request, { params }: Ctx) {
+/** 기본: 휴지통으로 이동(수납·이력은 보관). ?permanent=1: 휴지통에 있는 고객을 영구 삭제 */
+export async function DELETE(req: Request, { params }: Ctx) {
   const { id } = await params;
+  const permanent = new URL(req.url).searchParams.get("permanent") === "1";
   try {
     const { customers, payments, records } = await getRepos();
+    const cur = await customers.get(id);
+    if (!cur) return NextResponse.json({ error: "고객을 찾을 수 없습니다." }, { status: 404 });
+    if (!permanent) {
+      await customers.update(id, { ...cur, deletedAt: new Date().toISOString(), rev: (cur.rev ?? 0) + 1 });
+      return NextResponse.json({ ok: true, trashed: true });
+    }
+    if (!cur.deletedAt) return NextResponse.json({ error: "먼저 휴지통으로 이동해야 영구 삭제할 수 있습니다." }, { status: 400 });
     await payments.removeByCustomer(id);
     await records.removeByCustomer(id);
     await customers.remove(id);
