@@ -96,10 +96,19 @@ export default function CustomerApp() {
   async function save(c: Customer) {
     if (mode?.type === "new") {
       const created: Customer = await api("/api/customers", { method: "POST", body: JSON.stringify(c) });
-      setToast("신규 고객이 등록되었습니다."); await load(); setMode({ type: "view", id: created.id });
+      // 전체 재조회 없이 서버가 돌려준 고객만 목록 맨 앞에 넣는다 (목록은 최근 등록순)
+      setCustomers((l) => [created, ...(l ?? [])]);
+      setToast("신규 고객이 등록되었습니다."); setMode({ type: "view", id: created.id });
     } else if (mode?.type === "edit") {
       const updated: Customer = await api(`/api/customers/${encodeURIComponent(mode.id)}`, { method: "PUT", body: JSON.stringify(c) });
-      setToast("저장되었습니다."); await load(); setMode({ type: "view", id: updated.id });
+      const oldId = mode.id;
+      setCustomers((l) => (l ?? []).map((x) => (x.id === oldId ? updated : x)));
+      // 관리번호를 바꾸면 서버가 수납·이력도 새 번호로 옮긴다. 화면도 같이 옮긴다.
+      if (updated.id !== oldId) {
+        setPayments((l) => l.map((x) => (x.customerId === oldId ? { ...x, customerId: updated.id } : x)));
+        setRecords((l) => l.map((x) => (x.customerId === oldId ? { ...x, customerId: updated.id } : x)));
+      }
+      setToast("저장되었습니다."); setMode({ type: "view", id: updated.id });
     }
   }
   /** 필터 교환 완료: 선택한 날짜로 교환일 갱신 + 방문 이력(필터교체) 기록 (필터 정보 연결) */
@@ -193,7 +202,12 @@ export default function CustomerApp() {
   }
   async function remove(c: Customer) {
     await api(`/api/customers/${encodeURIComponent(c.id)}`, { method: "DELETE" });
-    setMode(null); await load();
+    // 휴지통으로 옮긴 고객과 그 수납·이력을 화면에서 바로 뺀다 (되돌리기·복구 때는 다시 불러온다)
+    setMode(null);
+    setCustomers((l) => (l ?? []).filter((x) => x.id !== c.id));
+    setTrash((l) => [{ ...c, deletedAt: new Date().toISOString() }, ...l]);
+    setPayments((l) => l.filter((x) => x.customerId !== c.id));
+    setRecords((l) => l.filter((x) => x.customerId !== c.id));
     setToast(`"${c.name}" 고객을 휴지통으로 이동했습니다.`);
     setUndo(() => async () => { await api(`/api/customers/${encodeURIComponent(c.id)}/restore`, { method: "POST" }); await load(); setUndo(null); setToast("삭제를 취소했습니다."); });
   }
@@ -203,7 +217,7 @@ export default function CustomerApp() {
   }
   async function purgeCustomer(c: Customer) {
     await api(`/api/customers/${encodeURIComponent(c.id)}?permanent=1`, { method: "DELETE" });
-    await load(); setToast(`"${c.name}" 고객을 영구 삭제했습니다.`);
+    setTrash((l) => l.filter((x) => x.id !== c.id)); setToast(`"${c.name}" 고객을 영구 삭제했습니다.`);
   }
   function go(t: "customers" | "payments", f?: string) {
     if (t === "customers") { setSeg(f === "overdue" ? "overdue" : "all"); setSegKey((k) => k + 1); }

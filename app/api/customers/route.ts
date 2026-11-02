@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (!body.name?.trim()) return NextResponse.json({ error: "고객명은 필수입니다." }, { status: 400 });
   try {
     const { customers } = await getRepos();
-    const c = normalizeCustomer({ ...body, id: body.id?.trim() || nextCustomerId(await customers.list()) });
+    const c = normalizeCustomer({ ...body, id: body.id?.trim() || nextCustomerId((await customers.ids()).map((id) => ({ id }))) });
     await customers.insert(c);
     return NextResponse.json(c, { status: 201 });
   } catch (e) {

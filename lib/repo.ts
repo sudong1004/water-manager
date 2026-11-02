@@ -9,6 +9,7 @@ export class DuplicateError extends Error {}
 /** 컬렉션 하나를 다루는 저장소. 파일/Supabase 두 구현이 같은 인터페이스를 따른다. */
 export interface Repo<T extends { id: string }> {
   list(): Promise<T[]>;
+  ids(): Promise<string[]>; // id만 (관리번호 매기기처럼 본문이 필요 없을 때 가볍게)
   get(id: string): Promise<T | null>;
   insert(row: T): Promise<void>; // 같은 id가 있으면 DuplicateError
   update(id: string, row: T): Promise<boolean>; // id 변경 가능. 없으면 false
@@ -23,6 +24,7 @@ export interface Repo<T extends { id: string }> {
 function fileRepo<T extends { id: string; customerId?: string }>(name: string, keep?: number): Repo<T> {
   return {
     list: () => readAll<T>(name),
+    ids: async () => (await readAll<T>(name)).map((r) => r.id),
     get: async (id) => (await readAll<T>(name)).find((r) => r.id === id) ?? null,
     insert: (row) =>
       mutate<T, void>(name, (l) => {
@@ -71,6 +73,16 @@ function sbRepo<T extends { id: string; customerId?: string }>(sb: SB, table: st
         const { data, error } = await sb.from(table).select("data").order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, from + 999);
         fail(error);
         out.push(...(data ?? []).map((r) => r.data as T));
+        if (!data || data.length < 1000) break;
+      }
+      return out;
+    },
+    async ids() {
+      const out: string[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await sb.from(table).select("id").order("id").range(from, from + 999);
+        fail(error);
+        out.push(...(data ?? []).map((r) => r.id as string));
         if (!data || data.length < 1000) break;
       }
       return out;
