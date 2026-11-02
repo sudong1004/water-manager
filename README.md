@@ -24,6 +24,16 @@ npm run build && npm start        # http://localhost:3000
 
 서버 배포(Vercel)는 같은 두 환경변수를 프로젝트 Environment Variables에 넣으면 됩니다.
 
+## Supabase 프로젝트 옮기기 (예: 지역 변경)
+옛 프로젝트는 읽기만 하므로, 문제가 생기면 환경변수만 옛 값으로 되돌리면 됩니다.
+1. 새 프로젝트를 원하는 지역에 만들고, SQL Editor 에서 `supabase/schema.sql` 실행
+2. `brew install postgresql@17` (pg_dump/psql 17 이상)
+3. 두 프로젝트의 **Connect → Session pooler** 주소를 터미널에서 `export OLD_DB_URL=...`, `export NEW_DB_URL=...`
+4. `bash scripts/migrate-supabase.sh` → 관리자 계정(비밀번호 그대로)과 고객·수납·이력·가져오기 기록이 복사되고 행 수를 비교해 보여 줌
+5. 새 프로젝트 설정: Authentication → Providers → Email 에서 "Allow new users to sign up" 끄기, URL Configuration 의 Site URL 을 배포 주소로
+6. `.env.local` 과 Vercel 환경변수를 새 프로젝트 값으로 바꾸고, `vercel.json` 의 `regions` 를 새 지역 옆으로 맞춘 뒤 다시 배포 (서울: `icn1`)
+7. 각자 다시 로그인해서 데이터 확인. 며칠 써 보고 이상 없으면 옛 프로젝트 정리
+
 ## 메뉴
 홈(대시보드: 최근 활동·방문 예정·교환 지연) · 고객(검색/지역필터/등록·수정) · 🗺 지도 · 📅 달력(한 일·예정, 기간 보고서) · 수납(월별·미수금) · 가져오기(월별 엑셀 + 💾 전체 백업) · 🔍 점검 · 🔄 새로고침
 고객 상세: 정보 / 수납 / 이력 탭
